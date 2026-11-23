@@ -44,7 +44,7 @@ struct HabitDetailView: View {
 
                     // Blobby + falling emoji + floating labels
                     ZStack {
-                        BlobMascot(progress: habit.progress(), color: habit.color,
+                        BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind,
                                    size: 230, bump: bump, celebrate: celebrating)
                             .onTapGesture { addStep(habit) }
 

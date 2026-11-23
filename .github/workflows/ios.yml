@@ -62,15 +62,18 @@ jobs:
           }
           shot 1-empty     -demo empty
           shot 2-home      -demo sample
-          shot 3-detail    -demo sample -open 0
-          shot 4-done      -demo sample -open 1 -celebrate
-          shot 5-add       -demo sample -add
+          shot 3-drop      -demo sample -open 0
+          shot 4-flame-done -demo sample -open 1 -celebrate
+          shot 5-sprout    -demo sample -open 2
+          shot 6-sun       -demo sample -open 3
+          shot 7-apple     -demo sample -open 4
+          shot 8-add       -demo sample -add
 
           # short video of the logging animation (app auto-logs in -autolog mode)
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
           xcrun simctl launch "$UDID" "$BUNDLE_ID" -demo sample -open 0 -autolog
           sleep 1
-          xcrun simctl io "$UDID" recordVideo --codec h264 --force screenshots/6-logging.mp4 &
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force screenshots/9-logging.mp4 &
           REC=$!
           sleep 9
           kill -INT $REC; wait $REC || true

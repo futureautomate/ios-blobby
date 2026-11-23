@@ -63,6 +63,8 @@ final class HabitStore: ObservableObject {
         var water = Habit(name: "Drink water", emoji: "💧", color: .ocean, goal: 2000, unit: "ml", step: 250)
         var walk = Habit(name: "Walk", emoji: "👟", color: .mint, goal: 8000, unit: "steps", step: 1000)
         var read = Habit(name: "Read", emoji: "📖", color: .grape, goal: 20, unit: "pages", step: 5)
+        var calm = Habit(name: "Meditate", emoji: "🧘", color: .sunny, goal: 10, unit: "min", step: 5)
+        var fruit = Habit(name: "Eat fruit", emoji: "🍎", color: .coral, goal: 3, unit: "servings", step: 1)
 
         let cal = Calendar.current
         for d in 1...6 {
@@ -71,12 +73,16 @@ final class HabitStore: ObservableObject {
             water.log[k] = d == 4 ? 1500 : 2000
             walk.log[k] = d % 2 == 0 ? 8000 : 5000
             read.log[k] = d == 5 ? 10 : 20
+            calm.log[k] = 10
+            fruit.log[k] = d % 3 == 0 ? 2 : 3
         }
         let today = Habit.key(Date())
         water.log[today] = 1250
         walk.log[today] = 8000
-        read.log[today] = 5
-        return [water, walk, read]
+        read.log[today] = 10
+        calm.log[today] = 5
+        fruit.log[today] = 1
+        return [water, walk, read, calm, fruit]
     }
 }
 

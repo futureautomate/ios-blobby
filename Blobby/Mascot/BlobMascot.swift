@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// Blobby: a jelly character that fills with "liquid" as the habit progresses.
-/// - wobbles and breathes all the time
-/// - blinks every few seconds, eyes drift around
-/// - smile grows with progress, big open grin at 100%
-/// - squashes & stretches whenever `bump` changes
-/// - jumps while `celebrate` is true
+/// A habit's cartoon character. Every kind shares the same personality
+/// (blinks, smiles more as progress grows, squashes on tap, jumps when celebrating)
+/// but shows progress its own way:
+/// - Droplet / Apple / Blobby: fill with liquid, bubbles rise
+/// - Sprout: a plant grows out of its pot, leaves pop, a flower blooms at 100%
+/// - Sunny: rays grow and spin, glow gets stronger
+/// - Flame: grows taller and brighter, flickers
 struct BlobMascot: View {
     var progress: Double
     var color: HabitColor
+    var kind: MascotKind = .blob
     var size: CGFloat = 220
     var bump: Int = 0
     var celebrate: Bool = false
@@ -29,15 +31,14 @@ struct BlobMascot: View {
                     .frame(width: size * 0.72 * (1 - jump / size), height: size * 0.10)
                     .offset(y: size * 0.47)
 
-                jelly(t: t)
+                character(t: t)
+                    .frame(width: size, height: size)
                     .scaleEffect(x: (squash ? 1.18 : 1.0) / breathe, y: (squash ? 0.82 : 1.0) * breathe, anchor: .bottom)
                     .offset(y: -jump)
             }
             .frame(width: size, height: size * 1.05)
         }
-        .onAppear {
-            fill = progress
-        }
+        .onAppear { fill = progress }
         .onChange(of: progress) {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.55)) {
                 fill = progress
@@ -51,45 +52,260 @@ struct BlobMascot: View {
         }
     }
 
-    // MARK: - Body
-
     @ViewBuilder
-    private func jelly(t: Double) -> some View {
-        let phase = t * 2.2
-        let outline = BlobShape(phase: phase)
+    private func character(t: Double) -> some View {
+        switch kind {
+        case .blob:
+            liquidBody(BlobShape(phase: t * 2.2), t: t, faceY: 0, faceScale: 1, gloss: CGPoint(x: -0.27, y: -0.16))
+        case .drop:
+            liquidBody(DropShape(phase: t * 2.2), t: t, faceY: size * 0.15, faceScale: 0.82, gloss: CGPoint(x: -0.2, y: 0.05))
+        case .apple:
+            ZStack {
+                // Stem behind the body
+                Capsule()
+                    .fill(Color(red: 0.45, green: 0.28, blue: 0.15))
+                    .overlay(Capsule().stroke(Ink.color, lineWidth: max(1.5, size * 0.02)))
+                    .frame(width: size * 0.05, height: size * 0.17)
+                    .rotationEffect(.degrees(12))
+                    .offset(x: size * 0.02, y: -size * 0.34)
+                liquidBody(AppleShape(phase: t * 2.0), t: t, faceY: size * 0.10, faceScale: 0.9, gloss: CGPoint(x: -0.24, y: -0.05))
+                // Leaf swaying in the breeze
+                LeafShape()
+                    .fill(HabitColor.mint.main)
+                    .overlay(LeafShape().stroke(Ink.color, lineWidth: max(1.5, size * 0.02)))
+                    .frame(width: size * 0.2, height: size * 0.1)
+                    .rotationEffect(.degrees(-25 + sin(t * 1.8) * 10), anchor: .leading)
+                    .offset(x: size * 0.13, y: -size * 0.38)
+            }
+        case .sprout:
+            SproutCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate)
+        case .sun:
+            SunCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate)
+        case .flame:
+            FlameCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate)
+        }
+    }
+
+    /// Shared "container fills with liquid" body used by Blobby, Droplet and Apple.
+    private func liquidBody<S: Shape>(_ shape: S, t: Double, faceY: CGFloat, faceScale: CGFloat, gloss: CGPoint) -> some View {
         let line = max(2.5, size * 0.03)
+        return ZStack {
+            shape.fill(color.light)
 
-        ZStack {
-            outline.fill(color.light)
-
-            // Back wave (lighter, offset) for depth.
             LiquidWave(level: fill, phase: t * 2.0 + 1.6, amplitude: size * 0.03)
                 .fill(color.main.opacity(0.45))
-                .mask(outline)
+                .mask(shape)
 
-            // Front wave.
             LiquidWave(level: fill, phase: t * 2.6, amplitude: size * 0.035)
-                .fill(LinearGradient(colors: [color.main, color.deep],
-                                     startPoint: .top, endPoint: .bottom))
-                .mask(outline)
+                .fill(LinearGradient(colors: [color.main, color.deep], startPoint: .top, endPoint: .bottom))
+                .mask(shape)
 
             BubblesView(t: t, level: fill, size: size)
-                .mask(outline)
+                .mask(shape)
 
-            // Glossy highlight.
             Ellipse()
                 .fill(Color.white.opacity(0.6))
-                .frame(width: size * 0.13, height: size * 0.24)
+                .frame(width: size * 0.12, height: size * 0.22)
                 .rotationEffect(.degrees(-28))
-                .offset(x: -size * 0.27, y: -size * 0.16)
+                .offset(x: gloss.x * size, y: gloss.y * size)
 
-            outline.stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
+            shape.stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
 
-            BlobFace(progress: fill, size: size, t: t, celebrate: celebrate)
+            BlobFace(progress: fill, size: size * faceScale, t: t, celebrate: celebrate)
+                .offset(y: faceY)
         }
         .frame(width: size, height: size)
     }
 }
+
+// MARK: - Sprout
+
+/// A pot with a face. The stem grows with progress, leaves pop out, a flower blooms at 100%.
+private struct SproutCharacter: View {
+    let progress: Double
+    let color: HabitColor
+    let size: CGFloat
+    let t: Double
+    let celebrate: Bool
+
+    private let leafGreen = Color(red: 0.30, green: 0.74, blue: 0.36)
+
+    var body: some View {
+        let line = max(2, size * 0.026)
+        let maxStem = size * 0.44
+        let p = CGFloat(min(max(progress, 0), 1))
+        let stemH = max(size * 0.05, maxStem * p)
+        let sway = Angle.degrees(sin(t * 1.6) * 5)
+
+        ZStack(alignment: .bottom) {
+            // Plant
+            ZStack(alignment: .bottom) {
+                Capsule()
+                    .fill(leafGreen)
+                    .overlay(Capsule().stroke(Ink.color, lineWidth: line * 0.7))
+                    .frame(width: size * 0.05, height: stemH)
+
+                ForEach(0..<4, id: \.self) { i in
+                    leaf(i, maxStem: maxStem, line: line)
+                }
+
+                flower(line: line)
+                    .offset(y: -stemH + size * 0.02)
+            }
+            .frame(width: size, height: maxStem + size * 0.2, alignment: .bottom)
+            .rotationEffect(sway, anchor: .bottom)
+            .offset(y: -size * 0.46)
+
+            // Pot with soil and face
+            ZStack {
+                Ellipse()
+                    .fill(Color(red: 0.36, green: 0.24, blue: 0.16))
+                    .frame(width: size * 0.66, height: size * 0.08)
+                    .offset(y: -size * 0.215)
+                PotShape().fill(LinearGradient(colors: [color.main, color.deep], startPoint: .top, endPoint: .bottom))
+                PotShape().stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
+                BlobFace(progress: progress, size: size * 0.58, t: t, celebrate: celebrate)
+                    .offset(y: size * 0.07)
+            }
+            .frame(width: size * 0.78, height: size * 0.5)
+        }
+        .frame(width: size, height: size)
+    }
+
+    private func leaf(_ i: Int, maxStem: CGFloat, line: CGFloat) -> some View {
+        let heights: [CGFloat] = [0.22, 0.42, 0.62, 0.80]
+        let f = heights[i]
+        let grow = CGFloat(min(max((progress - Double(f)) * 5.0, 0), 1))
+        let left = i % 2 == 0
+        let flutter = sin(t * 2.4 + Double(i)) * 6
+        return LeafShape()
+            .fill(leafGreen)
+            .overlay(LeafShape().stroke(Ink.color, lineWidth: line * 0.7))
+            .frame(width: size * 0.2, height: size * 0.1)
+            .rotationEffect(.degrees((left ? 200 : -20) + flutter), anchor: .leading)
+            .scaleEffect(grow, anchor: .leading)
+            .offset(x: size * 0.1, y: -f * maxStem)
+            .opacity(grow > 0.01 ? 1 : 0)
+    }
+
+    private func flower(line: CGFloat) -> some View {
+        let bloom = CGFloat(min(max((progress - 0.97) * 33.0, 0), 1))
+        let petal = size * 0.09
+        return ZStack {
+            ForEach(0..<6, id: \.self) { i in
+                Circle()
+                    .fill(HabitColor.coral.main)
+                    .overlay(Circle().stroke(Ink.color, lineWidth: line * 0.6))
+                    .frame(width: petal, height: petal)
+                    .offset(y: -petal * 0.62)
+                    .rotationEffect(.degrees(Double(i) * 60))
+            }
+            Circle()
+                .fill(HabitColor.sunny.main)
+                .overlay(Circle().stroke(Ink.color, lineWidth: line * 0.6))
+                .frame(width: petal * 0.85, height: petal * 0.85)
+        }
+        .rotationEffect(.radians(t * 0.6))
+        .scaleEffect(bloom)
+        .opacity(bloom > 0.01 ? 1 : 0)
+    }
+}
+
+// MARK: - Sun
+
+/// A sun whose rays grow and spin faster as progress rises; glows when complete.
+private struct SunCharacter: View {
+    let progress: Double
+    let color: HabitColor
+    let size: CGFloat
+    let t: Double
+    let celebrate: Bool
+
+    var body: some View {
+        let line = max(2, size * 0.026)
+        let p = CGFloat(min(max(progress, 0), 1))
+        let core = size * 0.56
+        let rayLen = size * (0.06 + 0.11 * p)
+        let done = progress >= 0.999 || celebrate
+        let spin = Angle.radians(t * (done ? 0.9 : 0.25))
+        let pulse = done ? 1.0 + 0.06 * CGFloat(sin(t * 4.0)) : 1.0
+
+        ZStack {
+            Circle()
+                .fill(color.main.opacity(0.15 + 0.35 * Double(p)))
+                .frame(width: core * 1.55 * pulse, height: core * 1.55 * pulse)
+                .blur(radius: size * 0.05)
+
+            ZStack {
+                ForEach(0..<12, id: \.self) { i in
+                    Capsule()
+                        .fill(i % 2 == 0 ? color.main : color.deep)
+                        .overlay(Capsule().stroke(Ink.color, lineWidth: line * 0.7))
+                        .frame(width: size * 0.065, height: rayLen)
+                        .offset(y: -(core / 2 + size * 0.035 + rayLen / 2))
+                        .rotationEffect(.degrees(Double(i) * 30))
+                }
+            }
+            .rotationEffect(spin)
+
+            Circle().fill(color.light).frame(width: core, height: core)
+            Circle()
+                .fill(RadialGradient(colors: [color.main.opacity(0.7), color.main],
+                                     center: .center, startRadius: 0, endRadius: core / 2))
+                .frame(width: core, height: core)
+                .opacity(0.25 + 0.75 * Double(p))
+            Ellipse()
+                .fill(Color.white.opacity(0.55))
+                .frame(width: core * 0.16, height: core * 0.28)
+                .rotationEffect(.degrees(-30))
+                .offset(x: -core * 0.28, y: -core * 0.2)
+            Circle().stroke(Ink.color, lineWidth: line).frame(width: core, height: core)
+
+            BlobFace(progress: progress, size: core * 1.05, t: t, celebrate: celebrate)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Flame
+
+/// A flame that grows taller and wider with progress and flickers constantly.
+private struct FlameCharacter: View {
+    let progress: Double
+    let color: HabitColor
+    let size: CGFloat
+    let t: Double
+    let celebrate: Bool
+
+    var body: some View {
+        let line = max(2.5, size * 0.03)
+        let p = CGFloat(min(max(progress, 0), 1))
+        let phase = t * 6.0
+
+        ZStack(alignment: .bottom) {
+            ZStack(alignment: .bottom) {
+                FlameShape(phase: phase)
+                    .fill(LinearGradient(colors: [color.main, color.deep], startPoint: .top, endPoint: .bottom))
+                FlameShape(phase: phase + 1.7)
+                    .fill(LinearGradient(colors: [Color.white.opacity(0.9), HabitColor.sunny.main.opacity(0.9)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .frame(width: size * 0.42, height: size * 0.5)
+                    .offset(y: -size * 0.04)
+                    .opacity(0.35 + 0.65 * Double(p))
+                FlameShape(phase: phase)
+                    .stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
+            }
+            .frame(width: size * 0.84, height: size * 0.96)
+            .scaleEffect(x: 0.82 + 0.18 * p, y: 0.55 + 0.45 * p, anchor: .bottom)
+
+            BlobFace(progress: progress, size: size * 0.6, t: t, celebrate: celebrate)
+                .offset(y: -size * 0.13)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Shared parts
 
 /// Bubbles rising through the liquid.
 private struct BubblesView: View {
@@ -124,8 +340,8 @@ private struct BubblesView: View {
     }
 }
 
-/// Eyes, mouth and cheeks.
-private struct BlobFace: View {
+/// Eyes, mouth and cheeks — shared by every character.
+struct BlobFace: View {
     let progress: Double
     let size: CGFloat
     let t: Double
@@ -143,7 +359,7 @@ private struct BlobFace: View {
                 eye(blink: blink, look: look, happy: happy)
             }
             ZStack {
-                if done || celebrate {
+                if happy {
                     OpenMouthShape()
                         .fill(Ink.color)
                         .overlay(

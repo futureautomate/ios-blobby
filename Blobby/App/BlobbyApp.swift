@@ -8,6 +8,7 @@ struct BlobbyApp: App {
         WindowGroup {
             HomeView()
                 .environmentObject(store)
+                .preferredColorScheme(.light)   // the cartoon palette is designed for light mode
         }
     }
 }

@@ -103,7 +103,7 @@ struct HabitCard: View {
     var body: some View {
         HStack(spacing: 14) {
             HStack(spacing: 14) {
-                BlobMascot(progress: habit.progress(), color: habit.color, size: 78, bump: bump)
+                BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 78, bump: bump)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(habit.emoji) \(habit.name)")
                         .font(.cartoon(19))
@@ -146,7 +146,7 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            BlobMascot(progress: 0.25, color: .ocean, size: 170)
+            BlobMascot(progress: 0.35, color: .ocean, kind: .drop, size: 170)
             Text("No habits yet")
                 .font(.cartoon(26))
                 .foregroundStyle(Ink.color)
