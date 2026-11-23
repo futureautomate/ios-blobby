@@ -226,7 +226,7 @@ struct HabitCard: View {
         HStack(spacing: 14) {
             HStack(spacing: 14) {
                 BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 78, bump: bump,
-                           sticker: habit.emoji)
+                           sticker: habit.emoji, accessories: habit.unlocked)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text(habit.name)

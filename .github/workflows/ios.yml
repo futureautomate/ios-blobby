@@ -72,6 +72,9 @@ jobs:
           shot 11-delete   -demo sample -confirm 1
           shot 12-settings -demo sample -settings
           shot 13-edit-habit -demo sample -editHabit 0
+          shot 14-levels   -demo sample -open 3 -history
+          shot 15-levelup  -demo sample -open 0 -levelup
+          shot 16-read-levels -demo sample -open 2 -history
 
           # short video of the logging animation (app auto-logs in -autolog mode)
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true

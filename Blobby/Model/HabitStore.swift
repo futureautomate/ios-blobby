@@ -89,13 +89,15 @@ final class HabitStore: ObservableObject {
         var calm = Habit(name: "Meditate", emoji: "🧘", color: .sunny, goal: 10, unit: "min", step: 5)
         var fruit = Habit(name: "Eat fruit", emoji: "🍎", color: .coral, goal: 3, unit: "servings", step: 1)
 
+        // ~5 weeks of history so levels and the calendar have something to show:
+        // Meditate never missed (crown), Water missed once (bow tie), Read 9 days (sunglasses).
         let cal = Calendar.current
-        for d in 1...6 {
+        for d in 1...38 {
             guard let day = cal.date(byAdding: .day, value: -d, to: Date()) else { continue }
             let k = Habit.key(day)
-            water.log[k] = d == 4 ? 1500 : 2000
+            water.log[k] = d == 20 ? 1500 : 2000
             walk.log[k] = d % 2 == 0 ? 8000 : 5000
-            read.log[k] = d == 5 ? 10 : 20
+            read.log[k] = d <= 9 ? 20 : (d % 4 == 0 ? 0 : 15)
             calm.log[k] = 10
             fruit.log[k] = d % 3 == 0 ? 2 : 3
         }
@@ -128,4 +130,6 @@ enum LaunchOptions {
     static var confirmIndex: Int? { value("-confirm").flatMap { Int($0) } }
     static var showSettings: Bool { args.contains("-settings") }
     static var editHabitIndex: Int? { value("-editHabit").flatMap { Int($0) } }
+    static var scrollToHistory: Bool { args.contains("-history") }
+    static var showLevelUp: Bool { args.contains("-levelup") }
 }

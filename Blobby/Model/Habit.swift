@@ -52,6 +52,49 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
 
     var hasReminder: Bool { reminderHour != nil }
 
+    // MARK: - Levels & history
+
+    static func date(fromKey key: String) -> Date? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+    }
+
+    /// Longest run of completed days ever (accessories are earned by this, so they're never lost).
+    var bestStreak: Int {
+        let cal = Calendar.current
+        let doneDays = log.compactMap { (key, value) -> Date? in
+            value >= goal && goal > 0 ? Habit.date(fromKey: key) : nil
+        }.sorted()
+        var best = 0
+        var run = 0
+        var previous: Date?
+        for day in doneDays {
+            if let p = previous, cal.dateComponents([.day], from: p, to: day).day == 1 {
+                run += 1
+            } else {
+                run = 1
+            }
+            best = max(best, run)
+            previous = day
+        }
+        return max(best, streak)
+    }
+
+    var unlocked: [Accessory] { Accessory.allCases.filter { bestStreak >= $0.days } }
+    var level: Int { unlocked.count + 1 }
+    var levelTitle: String { unlocked.last?.levelTitle ?? "Newbie" }
+    var nextAccessory: Accessory? { Accessory.allCases.first { bestStreak < $0.days } }
+
+    var daysCompleted: Int { log.values.filter { $0 >= goal && goal > 0 }.count }
+    var totalLogged: Double { log.values.reduce(0, +) }
+
+    /// "42.5 L" for ml habits, otherwise "1,250 pages".
+    func formatTotal(_ value: Double) -> String {
+        if unit.lowercased() == "ml" && value >= 1000 { return "\((value / 1000).clean) L" }
+        return "\(value.clean) \(unitLabel(for: value))"
+    }
+
     /// "18:00"
     var reminderText: String? {
         guard let h = reminderHour else { return nil }
@@ -168,5 +211,41 @@ enum MascotKind: String, Codable, CaseIterable, Identifiable, Hashable {
             || n.contains("study") || n.contains("write") { return .sprout }
         if has(["🧘", "☀️", "😴", "🌙"]) || n.contains("meditat") || n.contains("sleep") { return .sun }
         return .blob
+    }
+}
+
+/// Wearables a character earns by keeping a streak. Raw value = days in a row needed.
+enum Accessory: Int, CaseIterable, Identifiable, Hashable {
+    case partyHat = 3, sunglasses = 7, bowTie = 14, crown = 30
+
+    var id: Int { rawValue }
+    var days: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .partyHat: return "Party hat"
+        case .sunglasses: return "Sunglasses"
+        case .bowTie: return "Bow tie"
+        case .crown: return "Crown"
+        }
+    }
+
+    var emoji: String {
+        switch self {
+        case .partyHat: return "🎉"
+        case .sunglasses: return "😎"
+        case .bowTie: return "🎀"
+        case .crown: return "👑"
+        }
+    }
+
+    /// Title for the level this accessory unlocks.
+    var levelTitle: String {
+        switch self {
+        case .partyHat: return "Party starter"
+        case .sunglasses: return "Cool cat"
+        case .bowTie: return "Dapper"
+        case .crown: return "Royalty"
+        }
     }
 }

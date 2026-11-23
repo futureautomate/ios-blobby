@@ -18,6 +18,14 @@ struct BlobMascot: View {
     var sticker: String? = nil
     /// Sad face (used in the delete popup).
     var sad: Bool = false
+    /// Earned accessories (party hat, sunglasses, bow tie, crown).
+    var accessories: [Accessory] = []
+
+    private var gear: FaceGear {
+        FaceGear(sad: sad,
+                 glasses: accessories.contains(.sunglasses),
+                 bowTie: accessories.contains(.bowTie))
+    }
 
     @State private var fill: Double = 0
     @State private var squash: Bool = false
@@ -37,6 +45,13 @@ struct BlobMascot: View {
 
                 character(t: t)
                     .frame(width: size, height: size)
+                    .overlay {
+                        if let hat = headwear {
+                            HeadwearView(kind: hat, width: size * 0.3)
+                                .rotationEffect(.degrees(hatTilt + sin(t * 2.0) * 3), anchor: .bottom)
+                                .offset(x: headPoint.width, y: headPoint.height - size * 0.3 * 0.5)
+                        }
+                    }
                     .overlay {
                         if let sticker = sticker, !sticker.isEmpty {
                             StickerBadge(emoji: sticker, size: size * 0.28)
@@ -60,6 +75,36 @@ struct BlobMascot: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.32)) { squash = false }
             }
+        }
+    }
+
+    /// Crown beats party hat.
+    private var headwear: Accessory? {
+        if accessories.contains(.crown) { return .crown }
+        if accessories.contains(.partyHat) { return .partyHat }
+        return nil
+    }
+
+    /// Where the hat's bottom-centre sits on each character, relative to the centre.
+    private var headPoint: CGSize {
+        switch kind {
+        case .blob: return CGSize(width: size * 0.06, height: -size * 0.40)
+        case .drop: return CGSize(width: 0, height: -size * 0.43)
+        case .apple: return CGSize(width: -size * 0.16, height: -size * 0.33)
+        case .sprout: return CGSize(width: -size * 0.22, height: -size * 0.02)
+        case .sun: return CGSize(width: 0, height: -size * 0.27)
+        case .flame:
+            let sy = 0.55 + 0.45 * CGFloat(min(max(fill, 0), 1))
+            return CGSize(width: 0, height: size * 0.5 - size * 0.96 * sy + size * 0.05)
+        }
+    }
+
+    private var hatTilt: Double {
+        switch kind {
+        case .sprout: return -18
+        case .apple: return -14
+        case .blob: return 10
+        default: return 0
         }
     }
 
@@ -101,11 +146,11 @@ struct BlobMascot: View {
                     .offset(x: size * 0.13, y: -size * 0.38)
             }
         case .sprout:
-            SproutCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, sad: sad)
+            SproutCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
         case .sun:
-            SunCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, sad: sad)
+            SunCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
         case .flame:
-            FlameCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, sad: sad)
+            FlameCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
         }
     }
 
@@ -134,7 +179,7 @@ struct BlobMascot: View {
 
             shape.stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
 
-            BlobFace(progress: fill, size: size * faceScale, t: t, celebrate: celebrate, sad: sad)
+            BlobFace(progress: fill, size: size * faceScale, t: t, celebrate: celebrate, gear: gear)
                 .offset(y: faceY)
         }
         .frame(width: size, height: size)
@@ -150,7 +195,7 @@ private struct SproutCharacter: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
-    let sad: Bool
+    let gear: FaceGear
 
     private let leafGreen = Color(red: 0.30, green: 0.74, blue: 0.36)
 
@@ -188,7 +233,7 @@ private struct SproutCharacter: View {
                     .offset(y: -size * 0.215)
                 PotShape().fill(LinearGradient(colors: [color.main, color.deep], startPoint: .top, endPoint: .bottom))
                 PotShape().stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
-                BlobFace(progress: progress, size: size * 0.58, t: t, celebrate: celebrate, sad: sad)
+                BlobFace(progress: progress, size: size * 0.58, t: t, celebrate: celebrate, gear: gear)
                     .offset(y: size * 0.07)
             }
             .frame(width: size * 0.78, height: size * 0.5)
@@ -244,7 +289,7 @@ private struct SunCharacter: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
-    let sad: Bool
+    let gear: FaceGear
 
     var body: some View {
         let line = max(2, size * 0.026)
@@ -286,7 +331,7 @@ private struct SunCharacter: View {
                 .offset(x: -core * 0.28, y: -core * 0.2)
             Circle().stroke(Ink.color, lineWidth: line).frame(width: core, height: core)
 
-            BlobFace(progress: progress, size: core * 1.05, t: t, celebrate: celebrate, sad: sad)
+            BlobFace(progress: progress, size: core * 1.05, t: t, celebrate: celebrate, gear: gear)
         }
         .frame(width: size, height: size)
     }
@@ -301,7 +346,7 @@ private struct FlameCharacter: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
-    let sad: Bool
+    let gear: FaceGear
 
     var body: some View {
         let line = max(2.5, size * 0.03)
@@ -324,7 +369,7 @@ private struct FlameCharacter: View {
             .frame(width: size * 0.84, height: size * 0.96)
             .scaleEffect(x: 0.82 + 0.18 * p, y: 0.55 + 0.45 * p, anchor: .bottom)
 
-            BlobFace(progress: progress, size: size * 0.6, t: t, celebrate: celebrate, sad: sad)
+            BlobFace(progress: progress, size: size * 0.6, t: t, celebrate: celebrate, gear: gear)
                 .offset(y: -size * 0.13)
         }
         .frame(width: size, height: size)
@@ -372,7 +417,9 @@ struct BlobFace: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
-    var sad: Bool = false
+    var gear: FaceGear = FaceGear()
+
+    private var sad: Bool { gear.sad }
 
     var body: some View {
         let blink = t.truncatingRemainder(dividingBy: 3.7) < 0.13
@@ -384,6 +431,9 @@ struct BlobFace: View {
             HStack(spacing: size * 0.15) {
                 eye(blink: blink, look: look, happy: happy)
                 eye(blink: blink, look: look, happy: happy)
+            }
+            .overlay {
+                if gear.glasses { sunglasses }
             }
             ZStack {
                 if happy {
@@ -413,6 +463,15 @@ struct BlobFace: View {
         .overlay(cheeks.opacity(!sad && (progress > 0.45 || happy) ? 1 : 0))
         .overlay(alignment: .topLeading) {
             if sad { tear }
+        }
+        .overlay(alignment: .bottom) {
+            if gear.bowTie {
+                BowTieShape()
+                    .fill(HabitColor.coral.main)
+                    .overlay(BowTieShape().stroke(Ink.color, style: StrokeStyle(lineWidth: max(1.5, size * 0.02), lineJoin: .round)))
+                    .frame(width: size * 0.3, height: size * 0.13)
+                    .offset(y: size * 0.17)
+            }
         }
         .offset(y: -size * 0.02)
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: done)
@@ -444,6 +503,32 @@ struct BlobFace: View {
             .frame(width: w, height: h)
             .scaleEffect(x: 1, y: blink ? 0.1 : 1)
         }
+    }
+
+    /// Cool shades over both eyes.
+    private var sunglasses: some View {
+        let w = size * 0.2
+        let h = size * 0.13
+        let line = max(1.5, size * 0.02)
+        return HStack(spacing: size * 0.06) {
+            lens(w: w, h: h, line: line)
+            lens(w: w, h: h, line: line)
+        }
+        .overlay(Capsule().fill(Ink.color).frame(width: size * 0.09, height: line * 1.4))
+        .offset(y: size * 0.01)
+    }
+
+    private func lens(w: CGFloat, h: CGFloat, line: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: h * 0.45, style: .continuous)
+            .fill(Ink.color)
+            .overlay(
+                Capsule()
+                    .fill(Color.white.opacity(0.7))
+                    .frame(width: w * 0.35, height: h * 0.16)
+                    .rotationEffect(.degrees(-20))
+                    .offset(x: -w * 0.15, y: -h * 0.18)
+            )
+            .frame(width: w, height: h)
     }
 
     /// A tear that slides down and repeats.
@@ -480,5 +565,119 @@ struct StickerBadge: View {
             .background(Circle().fill(Color.white))
             .overlay(Circle().stroke(Ink.color, lineWidth: max(1.5, size * 0.08)))
             .shadow(color: Ink.color.opacity(0.25), radius: 0, x: 0, y: max(1, size * 0.06))
+    }
+}
+
+/// Face options shared by every character.
+struct FaceGear {
+    var sad = false
+    var glasses = false
+    var bowTie = false
+}
+
+/// Bow tie: two triangles and a knot.
+struct BowTieShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.midX, y: r.midY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
+        p.closeSubpath()
+        p.move(to: CGPoint(x: r.midX, y: r.midY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.closeSubpath()
+        p.addEllipse(in: CGRect(x: r.midX - r.width * 0.11, y: r.midY - r.height * 0.3,
+                                width: r.width * 0.22, height: r.height * 0.6))
+        return p
+    }
+}
+
+/// Party hat or crown, drawn with its bottom edge at the view's bottom.
+struct HeadwearView: View {
+    let kind: Accessory
+    let width: CGFloat
+
+    var body: some View {
+        let line = max(1.5, width * 0.06)
+        Group {
+            if kind == .crown {
+                ZStack {
+                    CrownShape()
+                        .fill(LinearGradient(colors: [HabitColor.sunny.main, HabitColor.sunny.deep],
+                                             startPoint: .top, endPoint: .bottom))
+                    CrownShape()
+                        .stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
+                    HStack(spacing: width * 0.12) {
+                        gem(HabitColor.coral.main)
+                        gem(HabitColor.ocean.main)
+                        gem(HabitColor.mint.main)
+                    }
+                    .offset(y: width * 0.2)
+                }
+                .frame(width: width, height: width * 0.75)
+            } else {
+                ZStack(alignment: .top) {
+                    PartyHatShape()
+                        .fill(LinearGradient(colors: [HabitColor.coral.main, HabitColor.grape.main],
+                                             startPoint: .top, endPoint: .bottom))
+                    PartyHatShape()
+                        .fill(Color.white.opacity(0.0))
+                        .overlay(dots)
+                        .clipShape(PartyHatShape())
+                    PartyHatShape()
+                        .stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
+                    Circle()
+                        .fill(HabitColor.sunny.main)
+                        .overlay(Circle().stroke(Ink.color, lineWidth: line))
+                        .frame(width: width * 0.32, height: width * 0.32)
+                        .offset(y: -width * 0.14)
+                }
+                .frame(width: width * 0.8, height: width)
+            }
+        }
+        .frame(width: width, height: width, alignment: .bottom)
+    }
+
+    private var dots: some View {
+        ZStack {
+            Circle().fill(HabitColor.sunny.main).frame(width: width * 0.12, height: width * 0.12).offset(x: -width * 0.1, y: width * 0.25)
+            Circle().fill(HabitColor.sunny.main).frame(width: width * 0.12, height: width * 0.12).offset(x: width * 0.12, y: width * 0.05)
+            Circle().fill(HabitColor.sunny.main).frame(width: width * 0.1, height: width * 0.1).offset(x: 0, y: -width * 0.2)
+        }
+    }
+
+    private func gem(_ c: Color) -> some View {
+        Circle()
+            .fill(c)
+            .overlay(Circle().stroke(Ink.color, lineWidth: max(1, width * 0.035)))
+            .frame(width: width * 0.14, height: width * 0.14)
+    }
+}
+
+struct PartyHatShape: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.midX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
+        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY), control: CGPoint(x: r.midX, y: r.maxY + r.height * 0.12))
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct CrownShape: Shape {
+    func path(in r: CGRect) -> Path {
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * r.width, y: r.minY + y * r.height) }
+        var p = Path()
+        p.move(to: pt(0.04, 1.0))
+        p.addLine(to: pt(0.0, 0.15))
+        p.addLine(to: pt(0.27, 0.5))
+        p.addLine(to: pt(0.5, 0.0))
+        p.addLine(to: pt(0.73, 0.5))
+        p.addLine(to: pt(1.0, 0.15))
+        p.addLine(to: pt(0.96, 1.0))
+        p.closeSubpath()
+        return p
     }
 }

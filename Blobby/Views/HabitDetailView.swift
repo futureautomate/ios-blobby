@@ -12,6 +12,7 @@ struct HabitDetailView: View {
     @State private var confettiLoop = false
     @State private var successTick = 0
     @State private var showingEdit = false
+    @State private var levelUp: Accessory?
 
     var body: some View {
         if let habit = store.habit(habitID) {
@@ -29,6 +30,7 @@ struct HabitDetailView: View {
                 .ignoresSafeArea()
             BackgroundBubbles(color: habit.color.main)
 
+            ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: 18) {
                     VStack(spacing: 6) {
@@ -57,7 +59,8 @@ struct HabitDetailView: View {
                     // Blobby + falling emoji + floating labels
                     ZStack {
                         BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind,
-                                   size: 230, bump: bump, celebrate: celebrating, sticker: habit.emoji)
+                                   size: 230, bump: bump, celebrate: celebrating, sticker: habit.emoji,
+                                   accessories: habit.unlocked)
                             .onTapGesture { addStep(habit) }
 
                         ForEach(drops, id: \.self) { id in
@@ -129,14 +132,37 @@ struct HabitDetailView: View {
                     WeekStrip(habit: habit)
                         .padding(.horizontal, 20)
                         .padding(.top, 6)
+
+                    LevelCard(habit: habit)
+                        .padding(.horizontal, 20)
+                        .id("level")
+
+                    HistoryCard(habit: habit)
+                        .padding(.horizontal, 20)
+                        .id("history")
                 }
                 .padding(.bottom, 40)
+            }
+            .task {
+                if LaunchOptions.scrollToHistory {
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    withAnimation { scroller.scrollTo("level", anchor: .top) }
+                }
+            }
             }
 
             if let start = confettiStart {
                 ConfettiView(start: start, loop: confettiLoop,
                              colors: [habit.color.main, HabitColor.sunny.main, HabitColor.coral.main,
                                       HabitColor.mint.main, HabitColor.grape.main])
+            }
+
+            if let acc = levelUp {
+                LevelUpPopup(habit: habit, accessory: acc) {
+                    withAnimation(.spring) { levelUp = nil }
+                }
+                .transition(.opacity)
+                .zIndex(10)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -164,6 +190,9 @@ struct HabitDetailView: View {
             if LaunchOptions.celebrate {
                 startCelebration(loop: true)
             }
+            if LaunchOptions.showLevelUp, let acc = store.habit(habitID)?.unlocked.last {
+                levelUp = acc
+            }
             if LaunchOptions.autolog {
                 for _ in 0..<4 {
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
@@ -183,13 +212,20 @@ struct HabitDetailView: View {
         drops.removeAll { $0 == dropID }
         guard let habit = store.habit(habitID) else { return }
         let wasDone = habit.isDone()
+        let levelBefore = habit.unlocked.count
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
             store.log(habitID, delta: habit.step)
         }
         bump += 1
         labels.append(UUID())
-        if !wasDone, store.habit(habitID)?.isDone() == true {
+        if !wasDone, let updated = store.habit(habitID), updated.isDone() {
             startCelebration(loop: false)
+            // Finishing today can extend the streak past an accessory threshold.
+            if updated.unlocked.count > levelBefore, let acc = updated.unlocked.last {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                    withAnimation(.spring) { levelUp = acc }
+                }
+            }
         }
     }
 
