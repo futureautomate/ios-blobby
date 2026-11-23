@@ -57,6 +57,11 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         return min(amount(on: date) / goal, 1)
     }
 
+    /// "servings" -> "serving" when the amount is exactly 1.
+    func unitLabel(for amount: Double) -> String {
+        amount == 1 && unit.count > 1 && unit.hasSuffix("s") ? String(unit.dropLast()) : unit
+    }
+
     func isDone(on date: Date = Date()) -> Bool {
         goal > 0 && amount(on: date) >= goal
     }

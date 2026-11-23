@@ -68,6 +68,9 @@ jobs:
           shot 6-sun       -demo sample -open 3
           shot 7-apple     -demo sample -open 4
           shot 8-add       -demo sample -add
+          shot 10-edit     -demo sample -edit
+          shot 11-delete   -demo sample -confirm 1
+          shot 12-settings -demo sample -settings
 
           # short video of the logging animation (app auto-logs in -autolog mode)
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true

@@ -52,7 +52,7 @@ struct HabitDetailView: View {
                             FallingEmoji(emoji: habit.emoji) { land(id) }
                         }
                         ForEach(labels, id: \.self) { id in
-                            FloatingLabel(text: "+\(habit.step.clean) \(habit.unit)", color: habit.color.deep)
+                            FloatingLabel(text: "+\(habit.step.clean) \(habit.unitLabel(for: habit.step))", color: habit.color.deep)
                                 .onAppear {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) {
                                         labels.removeAll { $0 == id }
@@ -78,7 +78,7 @@ struct HabitDetailView: View {
                         ProgressPill(progress: habit.progress(), color: habit.color, height: 16)
                             .padding(.horizontal, 30)
 
-                        Text(habit.isDone() ? "Goal reached! Blobby is full 🎉" : "\((habit.goal - habit.amount()).clean) \(habit.unit) to go")
+                        Text(habit.isDone() ? "Goal reached! \(habit.kind.title) is so happy 🎉" : "\((habit.goal - habit.amount()).clean) \(habit.unitLabel(for: habit.goal - habit.amount())) to go")
                             .font(.cartoon(16, .bold))
                             .foregroundStyle(habit.isDone() ? habit.color.deep : Ink.color.opacity(0.6))
                             .contentTransition(.numericText())
@@ -103,7 +103,7 @@ struct HabitDetailView: View {
                         .opacity(habit.amount() <= 0 ? 0.5 : 1)
 
                         Button { addStep(habit) } label: {
-                            Label("Add \(habit.step.clean) \(habit.unit)", systemImage: "plus")
+                            Label("Add \(habit.step.clean) \(habit.unitLabel(for: habit.step))", systemImage: "plus")
                                 .font(.cartoon(20))
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)

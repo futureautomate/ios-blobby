@@ -44,6 +44,18 @@ final class HabitStore: ObservableObject {
         save()
     }
 
+    /// Deletes every habit and its history.
+    func reset() {
+        habits = []
+        save()
+    }
+
+    /// Replaces everything with the 5 demo habits (handy for testing).
+    func loadSample() {
+        habits = HabitStore.sample()
+        save()
+    }
+
     // MARK: - Persistence
 
     private func load() {
@@ -101,4 +113,7 @@ enum LaunchOptions {
     static var celebrate: Bool { args.contains("-celebrate") }
     static var showAdd: Bool { args.contains("-add") }
     static var autolog: Bool { args.contains("-autolog") }
+    static var editing: Bool { args.contains("-edit") }
+    static var confirmIndex: Int? { value("-confirm").flatMap { Int($0) } }
+    static var showSettings: Bool { args.contains("-settings") }
 }
