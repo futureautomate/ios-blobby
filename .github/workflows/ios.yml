@@ -39,7 +39,37 @@ jobs:
             | grep -E "error:|warning: .*\.swift|BUILD (SUCCEEDED|FAILED)" || true
           test -d "build/Build/Products/Debug-iphonesimulator/$SCHEME.app"
 
+      - name: Archive (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -project "$SCHEME.xcodeproj" -scheme "$SCHEME" \
+            -configuration Release -sdk iphoneos -destination generic/platform=iOS \
+            -archivePath "build/$SCHEME.xcarchive" archive \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          test -d "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app"
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app" Payload/
+          APP="Payload/$SCHEME.app"
+          ls "$APP/PlugIns"
+          # Bake the App Group entitlement into a placeholder (ad-hoc) signature so the
+          # sideloading tool can carry it over when it re-signs with the free Apple ID.
+          codesign -f -s - --entitlements BlobbyWidget/BlobbyWidget.entitlements "$APP/PlugIns/BlobbyWidget.appex"
+          codesign -f -s - --entitlements Blobby/Blobby.entitlements "$APP"
+          echo "== app entitlements";    codesign -d --entitlements - "$APP"
+          echo "== widget entitlements"; codesign -d --entitlements - "$APP/PlugIns/BlobbyWidget.appex"
+          zip -qry "$SCHEME-unsigned.ipa" Payload
+          ls -lh "$SCHEME-unsigned.ipa"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa-unsigned
+          path: "*-unsigned.ipa"
+          retention-days: 7
       - name: Run demo screens and capture
+        timeout-minutes: 8          # a hung simulator must not block anything
+        continue-on-error: true
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "
           import json,sys
@@ -92,35 +122,8 @@ jobs:
           name: screenshots
           path: screenshots/
           retention-days: 7
+          if-no-files-found: ignore
 
-      - name: Archive (unsigned)
-        run: |
-          set -o pipefail
-          xcodebuild -project "$SCHEME.xcodeproj" -scheme "$SCHEME" \
-            -configuration Release -sdk iphoneos -destination generic/platform=iOS \
-            -archivePath "build/$SCHEME.xcarchive" archive \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
-            | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
-          test -d "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app"
-      - name: Package IPA
-        run: |
-          mkdir -p Payload
-          cp -R "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app" Payload/
-          APP="Payload/$SCHEME.app"
-          ls "$APP/PlugIns"
-          # Bake the App Group entitlement into a placeholder (ad-hoc) signature so the
-          # sideloading tool can carry it over when it re-signs with the free Apple ID.
-          codesign -f -s - --entitlements BlobbyWidget/BlobbyWidget.entitlements "$APP/PlugIns/BlobbyWidget.appex"
-          codesign -f -s - --entitlements Blobby/Blobby.entitlements "$APP"
-          echo "== app entitlements";    codesign -d --entitlements - "$APP"
-          echo "== widget entitlements"; codesign -d --entitlements - "$APP/PlugIns/BlobbyWidget.appex"
-          zip -qry "$SCHEME-unsigned.ipa" Payload
-          ls -lh "$SCHEME-unsigned.ipa"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ipa-unsigned
-          path: "*-unsigned.ipa"
-          retention-days: 7
       - name: Publish screenshots to ci-screenshots branch
         continue-on-error: true
         run: |
