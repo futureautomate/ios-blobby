@@ -7,7 +7,7 @@ options:
     iOS: "17.0"
 settings:
   base:
-    MARKETING_VERSION: "0.5.0"
+    MARKETING_VERSION: "0.6.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
 targets:
@@ -16,6 +16,12 @@ targets:
     platform: iOS
     sources: [Blobby]
     scheme: {}
+    dependencies:
+      - target: BlobbyWidget          # embeds the widget extension in the app
+    entitlements:
+      path: Blobby/Blobby.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.futureautomate.blobby]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.futureautomate.blobby
@@ -26,3 +32,29 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1"   # iPhone only for now; "1,2" adds iPad
+
+  BlobbyWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - BlobbyWidget
+      - Blobby/Shared
+      - Blobby/Model/Habit.swift
+      - Blobby/App/Theme.swift
+      - Blobby/Mascot
+    info:
+      path: BlobbyWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Blobby
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: BlobbyWidget/BlobbyWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.futureautomate.blobby]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.futureautomate.blobby.widget
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES

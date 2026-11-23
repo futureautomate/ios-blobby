@@ -110,6 +110,7 @@ struct SettingsView: View {
 
     private enum Pending { case reset, sample }
     @State private var pending: Pending?
+    @State private var showingWidgets = false
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
@@ -144,8 +145,20 @@ struct SettingsView: View {
                     subtitle: "Replace everything with 5 demo habits (for testing)") {
                     withAnimation(.spring) { pending = .sample }
                 }
+                row(emoji: "🧩", title: "Widget preview",
+                    subtitle: "See the small, medium and large Home-screen widgets") {
+                    showingWidgets = true
+                }
 
                 Spacer()
+
+                // Tells us whether the sideloaded build kept the App Group entitlement.
+                Label(HabitFile.isShared ? "Widget sync on: the widget can see your habits"
+                                         : "Widget sync off: the widget can't see your habits on this install",
+                      systemImage: HabitFile.isShared ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.cartoon(12, .bold))
+                    .foregroundStyle(HabitFile.isShared ? HabitColor.mint.deep : HabitColor.coral.deep)
+                    .frame(maxWidth: .infinity)
 
                 Text("Blobby v\(version) · built on Windows")
                     .font(.cartoon(13, .bold))
@@ -175,7 +188,12 @@ struct SettingsView: View {
                 .transition(.opacity)
             }
         }
-        .presentationDetents([.medium])
+        .sheet(isPresented: $showingWidgets) {
+            WidgetPreviewGallery(habits: store.habits)
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color(red: 0.86, green: 0.90, blue: 0.97))
+        }
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(34)
         .presentationBackground(Paper.color)

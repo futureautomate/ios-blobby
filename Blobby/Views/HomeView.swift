@@ -12,6 +12,7 @@ struct HomeView: View {
     @State private var poofing: Set<UUID> = []
     @State private var editTick = 0
     @State private var editingHabit: Habit?
+    @State private var showingWidgets = false
 
     private var doneCount: Int {
         store.habits.filter { $0.isDone() }.count
@@ -87,6 +88,10 @@ struct HomeView: View {
             AddHabitView()
                 .environmentObject(store)
         }
+        .sheet(isPresented: $showingWidgets) {
+            WidgetPreviewGallery(habits: store.habits)
+                .presentationBackground(Color(red: 0.86, green: 0.90, blue: 0.97))
+        }
         .sheet(item: $editingHabit) { habit in
             AddHabitView(existing: habit)
                 .environmentObject(store)
@@ -111,6 +116,7 @@ struct HomeView: View {
             }
             if LaunchOptions.showAdd { showingAdd = true }
             if LaunchOptions.showSettings { showingSettings = true }
+            if LaunchOptions.showWidgets { showingWidgets = true }
             if let i = LaunchOptions.editHabitIndex, store.habits.indices.contains(i) {
                 editingHabit = store.habits[i]
             }

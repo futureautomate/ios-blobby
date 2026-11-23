@@ -9,9 +9,6 @@ final class HabitStore: ObservableObject {
     @Published var openRequest: UUID?
 
     private let persist: Bool
-    private let fileURL: URL = FileManager.default
-        .urls(for: .documentDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("habits.json")
 
     init(demo: String? = nil) {
         if let demo = demo {
@@ -68,14 +65,19 @@ final class HabitStore: ObservableObject {
     // MARK: - Persistence
 
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let decoded = try? JSONDecoder().decode([Habit].self, from: data) else { return }
-        habits = decoded
+        habits = HabitFile.load()
+    }
+
+    /// Pick up changes made by the widget's + button while the app was in the background.
+    func reloadFromDisk() {
+        guard persist else { return }
+        let fresh = HabitFile.load()
+        if fresh != habits { habits = fresh }
     }
 
     private func save() {
-        guard persist, let data = try? JSONEncoder().encode(habits) else { return }
-        try? data.write(to: fileURL, options: .atomic)
+        guard persist else { return }
+        HabitFile.save(habits)                // also refreshes the Home-screen widget
         Reminders.shared.reschedule(habits)   // keep reminders in sync with every change
     }
 
@@ -132,4 +134,5 @@ enum LaunchOptions {
     static var editHabitIndex: Int? { value("-editHabit").flatMap { Int($0) } }
     static var scrollToHistory: Bool { args.contains("-history") }
     static var showLevelUp: Bool { args.contains("-levelup") }
+    static var showWidgets: Bool { args.contains("-widgets") }
 }

@@ -20,6 +20,11 @@ struct BlobMascot: View {
     var sad: Bool = false
     /// Earned accessories (party hat, sunglasses, bow tie, crown).
     var accessories: [Accessory] = []
+    /// false = draw one still frame (Home-screen widgets can't animate or keep @State).
+    var animated: Bool = true
+
+    /// Liquid / growth level actually drawn.
+    private var shownFill: Double { animated ? fill : progress }
 
     private var gear: FaceGear {
         FaceGear(sad: sad,
@@ -31,12 +36,34 @@ struct BlobMascot: View {
     @State private var squash: Bool = false
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        Group {
+            if animated {
+                TimelineView(.animation) { timeline in
+                    scene(t: timeline.date.timeIntervalSinceReferenceDate)
+                }
+            } else {
+                scene(t: 0.6)
+            }
+        }
+        .onAppear { fill = progress }
+        .onChange(of: progress) {
+            withAnimation(.spring(response: 0.9, dampingFraction: 0.55)) {
+                fill = progress
+            }
+        }
+        .onChange(of: bump) {
+            withAnimation(.easeOut(duration: 0.08)) { squash = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.32)) { squash = false }
+            }
+        }
+    }
+
+    private func scene(t: Double) -> some View {
             let jump = celebrate ? CGFloat(abs(sin(t * 5.0))) * size * 0.16 : 0
             let breathe = 1.0 + 0.015 * CGFloat(sin(t * 2.0))
 
-            ZStack {
+            return ZStack {
                 // Ground shadow — shrinks while jumping.
                 Ellipse()
                     .fill(Ink.color.opacity(0.13))
@@ -63,19 +90,6 @@ struct BlobMascot: View {
                     .offset(y: -jump)
             }
             .frame(width: size, height: size * 1.05)
-        }
-        .onAppear { fill = progress }
-        .onChange(of: progress) {
-            withAnimation(.spring(response: 0.9, dampingFraction: 0.55)) {
-                fill = progress
-            }
-        }
-        .onChange(of: bump) {
-            withAnimation(.easeOut(duration: 0.08)) { squash = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.32)) { squash = false }
-            }
-        }
     }
 
     /// Crown beats party hat.
@@ -94,7 +108,7 @@ struct BlobMascot: View {
         case .sprout: return CGSize(width: -size * 0.22, height: -size * 0.02)
         case .sun: return CGSize(width: 0, height: -size * 0.27)
         case .flame:
-            let sy = 0.55 + 0.45 * CGFloat(min(max(fill, 0), 1))
+            let sy = 0.55 + 0.45 * CGFloat(min(max(shownFill, 0), 1))
             return CGSize(width: 0, height: size * 0.5 - size * 0.96 * sy + size * 0.05)
         }
     }
@@ -146,11 +160,11 @@ struct BlobMascot: View {
                     .offset(x: size * 0.13, y: -size * 0.38)
             }
         case .sprout:
-            SproutCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
+            SproutCharacter(progress: shownFill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
         case .sun:
-            SunCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
+            SunCharacter(progress: shownFill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
         case .flame:
-            FlameCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
+            FlameCharacter(progress: shownFill, color: color, size: size, t: t, celebrate: celebrate, gear: gear)
         }
     }
 
@@ -160,15 +174,15 @@ struct BlobMascot: View {
         return ZStack {
             shape.fill(color.light)
 
-            LiquidWave(level: fill, phase: t * 2.0 + 1.6, amplitude: size * 0.03)
+            LiquidWave(level: shownFill, phase: t * 2.0 + 1.6, amplitude: size * 0.03)
                 .fill(color.main.opacity(0.45))
                 .mask(shape)
 
-            LiquidWave(level: fill, phase: t * 2.6, amplitude: size * 0.035)
+            LiquidWave(level: shownFill, phase: t * 2.6, amplitude: size * 0.035)
                 .fill(LinearGradient(colors: [color.main, color.deep], startPoint: .top, endPoint: .bottom))
                 .mask(shape)
 
-            BubblesView(t: t, level: fill, size: size)
+            BubblesView(t: t, level: shownFill, size: size)
                 .mask(shape)
 
             Ellipse()
@@ -179,7 +193,7 @@ struct BlobMascot: View {
 
             shape.stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
 
-            BlobFace(progress: fill, size: size * faceScale, t: t, celebrate: celebrate, gear: gear)
+            BlobFace(progress: shownFill, size: size * faceScale, t: t, celebrate: celebrate, gear: gear)
                 .offset(y: faceY)
         }
         .frame(width: size, height: size)

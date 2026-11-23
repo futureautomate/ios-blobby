@@ -21,6 +21,7 @@ struct BlobbyApp: App {
         .onChange(of: scenePhase) {
             // New day / habits done elsewhere: rebuild reminders whenever the app comes back.
             if scenePhase == .active && LaunchOptions.demo == nil {
+                store.reloadFromDisk()          // the widget may have logged something
                 Reminders.shared.reschedule(store.habits)
             }
         }

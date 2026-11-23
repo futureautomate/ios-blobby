@@ -75,6 +75,7 @@ jobs:
           shot 14-levels   -demo sample -open 3 -history
           shot 15-levelup  -demo sample -open 0 -levelup
           shot 16-read-levels -demo sample -open 2 -history
+          shot 17-widgets  -demo sample -widgets
 
           # short video of the logging animation (app auto-logs in -autolog mode)
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
@@ -105,6 +106,14 @@ jobs:
         run: |
           mkdir -p Payload
           cp -R "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app" Payload/
+          APP="Payload/$SCHEME.app"
+          ls "$APP/PlugIns"
+          # Bake the App Group entitlement into a placeholder (ad-hoc) signature so the
+          # sideloading tool can carry it over when it re-signs with the free Apple ID.
+          codesign -f -s - --entitlements BlobbyWidget/BlobbyWidget.entitlements "$APP/PlugIns/BlobbyWidget.appex"
+          codesign -f -s - --entitlements Blobby/Blobby.entitlements "$APP"
+          echo "== app entitlements";    codesign -d --entitlements - "$APP"
+          echo "== widget entitlements"; codesign -d --entitlements - "$APP/PlugIns/BlobbyWidget.appex"
           zip -qry "$SCHEME-unsigned.ipa" Payload
           ls -lh "$SCHEME-unsigned.ipa"
       - uses: actions/upload-artifact@v4
