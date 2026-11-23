@@ -183,7 +183,9 @@ struct HabitDetailView: View {
             AddHabitView(existing: habit)
                 .environmentObject(store)
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        // Solid bar in the habit's tint so scrolled content doesn't slide under Back / pencil.
+        .toolbarBackground(habit.color.light, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: bump)
         .sensoryFeedback(.success, trigger: successTick)
         .task {

@@ -102,6 +102,7 @@ struct LevelUpPopup: View {
                 BlobMascot(progress: 1, color: habit.color, kind: habit.kind, size: 150, bump: bump,
                            celebrate: true, sticker: habit.emoji, accessories: habit.unlocked)
                     .allowsHitTesting(false)
+                    .padding(.top, 34)   // room for the hat / crown above the character
                 Text("\(habit.kind.title) earned \(accessory.emoji) \(accessory.title)")
                     .font(.cartoon(20))
                     .foregroundStyle(Ink.color)
