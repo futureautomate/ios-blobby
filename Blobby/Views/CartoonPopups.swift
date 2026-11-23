@@ -7,6 +7,7 @@ struct CartoonConfirm: View {
     let message: String
     let color: HabitColor
     let kind: MascotKind
+    var sticker: String? = nil
     let confirmTitle: String
     let onCancel: () -> Void
     let onConfirm: () -> Void
@@ -20,7 +21,7 @@ struct CartoonConfirm: View {
                 .onTapGesture(perform: onCancel)
 
             VStack(spacing: 12) {
-                BlobMascot(progress: 0, color: color, kind: kind, size: 100)
+                BlobMascot(progress: 0.6, color: color, kind: kind, size: 110, sticker: sticker, sad: true)
                     .allowsHitTesting(false)
                 Text(title)
                     .font(.cartoon(22))

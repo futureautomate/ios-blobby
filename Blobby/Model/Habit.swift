@@ -10,9 +10,12 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     var unit: String          // e.g. "ml"
     var step: Double          // amount added per tap, e.g. 250
     var log: [String: Double] // "yyyy-MM-dd" -> amount that day
+    var reminderHour: Int?    // daily reminder time (nil = no reminder)
+    var reminderMinute: Int?
 
     init(id: UUID = UUID(), name: String, emoji: String, color: HabitColor, kind: MascotKind? = nil,
-         goal: Double, unit: String, step: Double, log: [String: Double] = [:]) {
+         goal: Double, unit: String, step: Double, log: [String: Double] = [:],
+         reminderHour: Int? = nil, reminderMinute: Int? = nil) {
         self.id = id
         self.name = name
         self.emoji = emoji
@@ -22,10 +25,12 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         self.unit = unit
         self.step = step
         self.log = log
+        self.reminderHour = reminderHour
+        self.reminderMinute = reminderMinute
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, emoji, color, kind, goal, unit, step, log
+        case id, name, emoji, color, kind, goal, unit, step, log, reminderHour, reminderMinute
     }
 
     /// Tolerant decoding: habits saved by v0.1 have no `kind`, so we pick one from the emoji/name.
@@ -41,6 +46,16 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         log = try c.decodeIfPresent([String: Double].self, forKey: .log) ?? [:]
         kind = try c.decodeIfPresent(MascotKind.self, forKey: .kind)
             ?? MascotKind.suggested(emoji: emoji, name: name)
+        reminderHour = try c.decodeIfPresent(Int.self, forKey: .reminderHour)
+        reminderMinute = try c.decodeIfPresent(Int.self, forKey: .reminderMinute)
+    }
+
+    var hasReminder: Bool { reminderHour != nil }
+
+    /// "18:00"
+    var reminderText: String? {
+        guard let h = reminderHour else { return nil }
+        return String(format: "%02d:%02d", h, reminderMinute ?? 0)
     }
 
     static func key(_ date: Date) -> String {
@@ -126,6 +141,18 @@ enum MascotKind: String, Codable, CaseIterable, Identifiable, Hashable {
         case .sun: return "rays grow, shines brighter"
         case .flame: return "burns bigger"
         case .blob: return "fills up with jelly"
+        }
+    }
+
+    /// Reminder title in the character's voice.
+    func reminderTitle(habit name: String) -> String {
+        switch self {
+        case .drop: return "Droplet is thirsty! Time for \(name.lowercased())"
+        case .apple: return "Apple is hungry — \(name.lowercased()) time"
+        case .sprout: return "Sprout wants to grow — \(name.lowercased()) time"
+        case .sun: return "Sunny saved you a calm moment — \(name.lowercased())"
+        case .flame: return "Keep Flame burning — \(name.lowercased()) time"
+        case .blob: return "Blobby is waiting — \(name.lowercased()) time"
         }
     }
 

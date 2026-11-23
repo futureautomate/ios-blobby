@@ -5,6 +5,8 @@ import SwiftUI
 /// In demo mode (used by CI screenshots) nothing is saved.
 final class HabitStore: ObservableObject {
     @Published var habits: [Habit] = []
+    /// Set when a reminder notification is tapped; HomeView opens that habit.
+    @Published var openRequest: UUID?
 
     private let persist: Bool
     private let fileURL: URL = FileManager.default
@@ -27,6 +29,13 @@ final class HabitStore: ObservableObject {
 
     func add(_ habit: Habit) {
         habits.append(habit)
+        save()
+    }
+
+    /// Replace an edited habit (keeps its id and history).
+    func update(_ habit: Habit) {
+        guard let i = habits.firstIndex(where: { $0.id == habit.id }) else { return }
+        habits[i] = habit
         save()
     }
 
@@ -67,12 +76,14 @@ final class HabitStore: ObservableObject {
     private func save() {
         guard persist, let data = try? JSONEncoder().encode(habits) else { return }
         try? data.write(to: fileURL, options: .atomic)
+        Reminders.shared.reschedule(habits)   // keep reminders in sync with every change
     }
 
     // MARK: - Demo data
 
     static func sample() -> [Habit] {
-        var water = Habit(name: "Drink water", emoji: "💧", color: .ocean, goal: 2000, unit: "ml", step: 250)
+        var water = Habit(name: "Drink water", emoji: "💧", color: .ocean, goal: 2000, unit: "ml", step: 250,
+                          reminderHour: 11, reminderMinute: 0)
         var walk = Habit(name: "Walk", emoji: "👟", color: .mint, goal: 8000, unit: "steps", step: 1000)
         var read = Habit(name: "Read", emoji: "📖", color: .grape, goal: 20, unit: "pages", step: 5)
         var calm = Habit(name: "Meditate", emoji: "🧘", color: .sunny, goal: 10, unit: "min", step: 5)
@@ -116,4 +127,5 @@ enum LaunchOptions {
     static var editing: Bool { args.contains("-edit") }
     static var confirmIndex: Int? { value("-confirm").flatMap { Int($0) } }
     static var showSettings: Bool { args.contains("-settings") }
+    static var editHabitIndex: Int? { value("-editHabit").flatMap { Int($0) } }
 }

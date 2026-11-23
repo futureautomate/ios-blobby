@@ -11,6 +11,7 @@ struct HomeView: View {
     @State private var pendingDelete: Habit?
     @State private var poofing: Set<UUID> = []
     @State private var editTick = 0
+    @State private var editingHabit: Habit?
 
     private var doneCount: Int {
         store.habits.filter { $0.isDone() }.count
@@ -71,6 +72,7 @@ struct HomeView: View {
                         message: "\(habit.kind.title) and all of this habit's history will be gone.",
                         color: habit.color,
                         kind: habit.kind,
+                        sticker: habit.emoji,
                         confirmTitle: "Delete",
                         onCancel: { withAnimation(.spring) { pendingDelete = nil } },
                         onConfirm: { confirmDelete(habit) }
@@ -85,6 +87,20 @@ struct HomeView: View {
             AddHabitView()
                 .environmentObject(store)
         }
+        .sheet(item: $editingHabit) { habit in
+            AddHabitView(existing: habit)
+                .environmentObject(store)
+        }
+        .onChange(of: store.openRequest) {
+            // A reminder was tapped: jump straight to that habit.
+            if let id = store.openRequest, store.habit(id) != nil {
+                showingAdd = false
+                showingSettings = false
+                editing = false
+                path = [id]
+            }
+            store.openRequest = nil
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
                 .environmentObject(store)
@@ -95,6 +111,9 @@ struct HomeView: View {
             }
             if LaunchOptions.showAdd { showingAdd = true }
             if LaunchOptions.showSettings { showingSettings = true }
+            if let i = LaunchOptions.editHabitIndex, store.habits.indices.contains(i) {
+                editingHabit = store.habits[i]
+            }
             if LaunchOptions.editing { editing = true }
             if let i = LaunchOptions.confirmIndex, store.habits.indices.contains(i) {
                 editing = true
@@ -206,12 +225,24 @@ struct HabitCard: View {
     var body: some View {
         HStack(spacing: 14) {
             HStack(spacing: 14) {
-                BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 78, bump: bump)
+                BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 78, bump: bump,
+                           sticker: habit.emoji)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(habit.emoji) \(habit.name)")
-                        .font(.cartoon(19))
-                        .foregroundStyle(Ink.color)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(habit.name)
+                            .font(.cartoon(19))
+                            .foregroundStyle(Ink.color)
+                            .lineLimit(1)
+                        if let time = habit.reminderText {
+                            Label(time, systemImage: "bell.fill")
+                                .font(.cartoon(11, .bold))
+                                .foregroundStyle(habit.color.deep)
+                                .labelStyle(.titleAndIcon)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(habit.color.light))
+                        }
+                    }
                     Text("\(habit.amount().clean) / \(habit.goal.clean) \(habit.unit)")
                         .font(.cartoon(14, .semibold))
                         .foregroundStyle(Ink.color.opacity(0.6))

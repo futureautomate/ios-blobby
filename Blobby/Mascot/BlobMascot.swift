@@ -14,6 +14,10 @@ struct BlobMascot: View {
     var size: CGFloat = 220
     var bump: Int = 0
     var celebrate: Bool = false
+    /// Habit emoji shown as a little sticker on the character.
+    var sticker: String? = nil
+    /// Sad face (used in the delete popup).
+    var sad: Bool = false
 
     @State private var fill: Double = 0
     @State private var squash: Bool = false
@@ -33,6 +37,13 @@ struct BlobMascot: View {
 
                 character(t: t)
                     .frame(width: size, height: size)
+                    .overlay {
+                        if let sticker = sticker, !sticker.isEmpty {
+                            StickerBadge(emoji: sticker, size: size * 0.28)
+                                .rotationEffect(.degrees(-10 + sin(t * 1.5) * 6))
+                                .offset(stickerOffset)
+                        }
+                    }
                     .scaleEffect(x: (squash ? 1.18 : 1.0) / breathe, y: (squash ? 0.82 : 1.0) * breathe, anchor: .bottom)
                     .offset(y: -jump)
             }
@@ -49,6 +60,18 @@ struct BlobMascot: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.32)) { squash = false }
             }
+        }
+    }
+
+    /// Where the sticker sits on each character (bottom-right area, clear of the face).
+    private var stickerOffset: CGSize {
+        switch kind {
+        case .blob: return CGSize(width: size * 0.31, height: size * 0.24)
+        case .drop: return CGSize(width: size * 0.26, height: size * 0.32)
+        case .apple: return CGSize(width: size * 0.31, height: size * 0.30)
+        case .sprout: return CGSize(width: size * 0.28, height: size * 0.37)
+        case .sun: return CGSize(width: size * 0.25, height: size * 0.25)
+        case .flame: return CGSize(width: size * 0.25, height: size * 0.35)
         }
     }
 
@@ -78,11 +101,11 @@ struct BlobMascot: View {
                     .offset(x: size * 0.13, y: -size * 0.38)
             }
         case .sprout:
-            SproutCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate)
+            SproutCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, sad: sad)
         case .sun:
-            SunCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate)
+            SunCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, sad: sad)
         case .flame:
-            FlameCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate)
+            FlameCharacter(progress: fill, color: color, size: size, t: t, celebrate: celebrate, sad: sad)
         }
     }
 
@@ -111,7 +134,7 @@ struct BlobMascot: View {
 
             shape.stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
 
-            BlobFace(progress: fill, size: size * faceScale, t: t, celebrate: celebrate)
+            BlobFace(progress: fill, size: size * faceScale, t: t, celebrate: celebrate, sad: sad)
                 .offset(y: faceY)
         }
         .frame(width: size, height: size)
@@ -127,6 +150,7 @@ private struct SproutCharacter: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
+    let sad: Bool
 
     private let leafGreen = Color(red: 0.30, green: 0.74, blue: 0.36)
 
@@ -164,7 +188,7 @@ private struct SproutCharacter: View {
                     .offset(y: -size * 0.215)
                 PotShape().fill(LinearGradient(colors: [color.main, color.deep], startPoint: .top, endPoint: .bottom))
                 PotShape().stroke(Ink.color, style: StrokeStyle(lineWidth: line, lineJoin: .round))
-                BlobFace(progress: progress, size: size * 0.58, t: t, celebrate: celebrate)
+                BlobFace(progress: progress, size: size * 0.58, t: t, celebrate: celebrate, sad: sad)
                     .offset(y: size * 0.07)
             }
             .frame(width: size * 0.78, height: size * 0.5)
@@ -220,6 +244,7 @@ private struct SunCharacter: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
+    let sad: Bool
 
     var body: some View {
         let line = max(2, size * 0.026)
@@ -261,7 +286,7 @@ private struct SunCharacter: View {
                 .offset(x: -core * 0.28, y: -core * 0.2)
             Circle().stroke(Ink.color, lineWidth: line).frame(width: core, height: core)
 
-            BlobFace(progress: progress, size: core * 1.05, t: t, celebrate: celebrate)
+            BlobFace(progress: progress, size: core * 1.05, t: t, celebrate: celebrate, sad: sad)
         }
         .frame(width: size, height: size)
     }
@@ -276,6 +301,7 @@ private struct FlameCharacter: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
+    let sad: Bool
 
     var body: some View {
         let line = max(2.5, size * 0.03)
@@ -298,7 +324,7 @@ private struct FlameCharacter: View {
             .frame(width: size * 0.84, height: size * 0.96)
             .scaleEffect(x: 0.82 + 0.18 * p, y: 0.55 + 0.45 * p, anchor: .bottom)
 
-            BlobFace(progress: progress, size: size * 0.6, t: t, celebrate: celebrate)
+            BlobFace(progress: progress, size: size * 0.6, t: t, celebrate: celebrate, sad: sad)
                 .offset(y: -size * 0.13)
         }
         .frame(width: size, height: size)
@@ -346,12 +372,13 @@ struct BlobFace: View {
     let size: CGFloat
     let t: Double
     let celebrate: Bool
+    var sad: Bool = false
 
     var body: some View {
         let blink = t.truncatingRemainder(dividingBy: 3.7) < 0.13
         let look = CGFloat(sin(t * 0.8)) * size * 0.012
         let done = progress >= 0.999
-        let happy = celebrate || done
+        let happy = (celebrate || done) && !sad
 
         VStack(spacing: size * 0.035) {
             HStack(spacing: size * 0.15) {
@@ -370,6 +397,11 @@ struct BlobFace: View {
                         )
                         .clipShape(OpenMouthShape())
                         .frame(width: size * 0.26, height: size * 0.09)
+                } else if sad {
+                    MouthShape(curve: -0.6)
+                        .stroke(Ink.color, style: StrokeStyle(lineWidth: max(2, size * 0.028), lineCap: .round))
+                        .frame(width: size * 0.2, height: size * 0.09)
+                        .offset(y: size * 0.04)
                 } else {
                     MouthShape(curve: -0.25 + progress * 1.1)
                         .stroke(Ink.color, style: StrokeStyle(lineWidth: max(2, size * 0.028), lineCap: .round))
@@ -378,7 +410,10 @@ struct BlobFace: View {
             }
             .frame(height: size * 0.12)
         }
-        .overlay(cheeks.opacity(progress > 0.45 || happy ? 1 : 0))
+        .overlay(cheeks.opacity(!sad && (progress > 0.45 || happy) ? 1 : 0))
+        .overlay(alignment: .topLeading) {
+            if sad { tear }
+        }
         .offset(y: -size * 0.02)
         .animation(.spring(response: 0.4, dampingFraction: 0.6), value: done)
     }
@@ -400,7 +435,7 @@ struct BlobFace: View {
                 Circle()
                     .fill(Ink.color)
                     .frame(width: w * 0.55, height: w * 0.55)
-                    .offset(x: look, y: h * 0.1)
+                    .offset(x: sad ? 0 : look, y: sad ? h * 0.2 : h * 0.1)
                 Circle()
                     .fill(Color.white)
                     .frame(width: w * 0.18, height: w * 0.18)
@@ -411,6 +446,17 @@ struct BlobFace: View {
         }
     }
 
+    /// A tear that slides down and repeats.
+    private var tear: some View {
+        let slide = CGFloat(t.truncatingRemainder(dividingBy: 1.8) / 1.8)
+        return DropShape(phase: 0)
+            .fill(Color(red: 0.55, green: 0.8, blue: 1.0))
+            .overlay(DropShape(phase: 0).stroke(Ink.color, lineWidth: max(1, size * 0.012)))
+            .frame(width: size * 0.07, height: size * 0.1)
+            .offset(x: size * 0.02, y: size * 0.12 + slide * size * 0.12)
+            .opacity(Double(1 - slide))
+    }
+
     private var cheeks: some View {
         HStack(spacing: size * 0.36) {
             Ellipse().fill(Color(red: 1.0, green: 0.5, blue: 0.55).opacity(0.45))
@@ -419,5 +465,20 @@ struct BlobFace: View {
                 .frame(width: size * 0.1, height: size * 0.055)
         }
         .offset(y: size * 0.05)
+    }
+}
+
+/// Round white sticker with the habit's emoji.
+struct StickerBadge: View {
+    let emoji: String
+    let size: CGFloat
+
+    var body: some View {
+        Text(emoji)
+            .font(.system(size: size * 0.56))
+            .frame(width: size, height: size)
+            .background(Circle().fill(Color.white))
+            .overlay(Circle().stroke(Ink.color, lineWidth: max(1.5, size * 0.08)))
+            .shadow(color: Ink.color.opacity(0.25), radius: 0, x: 0, y: max(1, size * 0.06))
     }
 }

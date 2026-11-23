@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AddHabitView: View {
     @EnvironmentObject var store: HabitStore
@@ -13,7 +14,35 @@ struct AddHabitView: View {
     @State private var unit = "ml"
     @State private var step: Double = 250
     @State private var previewBump = 0
+    @State private var remind = false
+    @State private var reminderTime = Date()
+    @State private var notifDenied = false
     @FocusState private var focused: Bool
+
+    /// nil = creating a new habit, otherwise editing this one.
+    private let existing: Habit?
+
+    init(existing: Habit? = nil) {
+        self.existing = existing
+        guard let h = existing else {
+            _reminderTime = State(initialValue: AddHabitView.time(9, 0))
+            return
+        }
+        _name = State(initialValue: h.name)
+        _emoji = State(initialValue: h.emoji)
+        _color = State(initialValue: h.color)
+        _kind = State(initialValue: h.kind)
+        _kindPicked = State(initialValue: true)
+        _goal = State(initialValue: h.goal)
+        _unit = State(initialValue: h.unit)
+        _step = State(initialValue: h.step)
+        _remind = State(initialValue: h.hasReminder)
+        _reminderTime = State(initialValue: AddHabitView.time(h.reminderHour ?? 9, h.reminderMinute ?? 0))
+    }
+
+    private static func time(_ hour: Int, _ minute: Int) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
+    }
 
     private let emojis = ["💧", "🥤", "🍵", "☕️", "🍎", "🥗", "🥦", "🍌",
                           "👟", "🏃", "🚴", "🏋️", "🧘", "😴", "🌙", "☀️",
@@ -31,10 +60,12 @@ struct AddHabitView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     header
                     preview
-                    section("Quick picks") { presets }
+                    if existing == nil {
+                        section("Quick picks") { presets }
+                    }
                     section("Pick a buddy") { characters }
                     section("Name") { nameField }
-                    section("Icon") { emojiGrid }
+                    section("Sticker") { emojiGrid }
                     section("Daily goal") {
                         stepper(value: $goal, by: step > 0 ? step : 1, trailing: AnyView(unitField))
                     }
@@ -42,6 +73,7 @@ struct AddHabitView: View {
                         stepper(value: $step, by: niceIncrement(step), trailing: AnyView(unitLabel))
                     }
                     section("Colour") { colors }
+                    section("Reminder") { reminderSection }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
@@ -66,7 +98,7 @@ struct AddHabitView: View {
 
     private var header: some View {
         HStack {
-            Text("New habit")
+            Text(existing == nil ? "New habit" : "Edit habit")
                 .font(.cartoon(30))
                 .foregroundStyle(Ink.color)
             Spacer()
@@ -85,10 +117,10 @@ struct AddHabitView: View {
 
     private var preview: some View {
         HStack(spacing: 16) {
-            BlobMascot(progress: 0.6, color: color, kind: kind, size: 116, bump: previewBump)
+            BlobMascot(progress: 0.6, color: color, kind: kind, size: 116, bump: previewBump, sticker: emoji)
                 .onTapGesture { previewBump += 1 }
             VStack(alignment: .leading, spacing: 6) {
-                Text("\(emoji) \(name.isEmpty ? "Your habit" : name)")
+                Text(name.isEmpty ? "Your habit" : name)
                     .font(.cartoon(20))
                     .foregroundStyle(Ink.color)
                     .lineLimit(2)
@@ -305,7 +337,8 @@ struct AddHabitView: View {
 
     private var addButton: some View {
         Button(action: save) {
-            Label("Add habit", systemImage: "plus")
+            Label(existing == nil ? "Add habit" : "Save changes",
+                  systemImage: existing == nil ? "plus" : "checkmark")
                 .font(.cartoon(20))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -322,6 +355,91 @@ struct AddHabitView: View {
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
         )
+    }
+
+    private var reminderSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Text("🔔").font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Daily reminder")
+                        .font(.cartoon(17))
+                        .foregroundStyle(Ink.color)
+                    Text(remind ? "\(kind.title) will nudge you at \(reminderTime.formatted(date: .omitted, time: .shortened))"
+                                : "Off — no nudges")
+                        .font(.cartoon(13, .medium))
+                        .foregroundStyle(Ink.color.opacity(0.55))
+                }
+                Spacer()
+                CartoonToggle(isOn: $remind, color: color)
+            }
+
+            if remind {
+                HStack(spacing: 8) {
+                    quickTime("☀️", 8, 0)
+                    quickTime("🌤", 12, 30)
+                    quickTime("🌇", 18, 0)
+                    quickTime("🌙", 21, 0)
+                }
+                DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .datePickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 120)
+                    .clipped()
+                Text("Skipped automatically on days you've already finished.")
+                    .font(.cartoon(12, .semibold))
+                    .foregroundStyle(Ink.color.opacity(0.5))
+            }
+
+            if remind && notifDenied {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notifications are turned off for Blobby, so reminders can't show.")
+                        .font(.cartoon(13, .bold))
+                        .foregroundStyle(HabitColor.coral.deep)
+                    Button("Open iPhone Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.cartoon(14, .bold))
+                    .foregroundStyle(Ink.color)
+                }
+            }
+        }
+        .padding(16)
+        .cartoonCard(radius: 22)
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: remind)
+        .onChange(of: remind) {
+            guard remind else { return }
+            Task {
+                let ok = await Reminders.shared.requestPermission()
+                notifDenied = !ok
+            }
+        }
+        .task {
+            if remind { notifDenied = await Reminders.shared.isDenied() }
+        }
+    }
+
+    private func quickTime(_ icon: String, _ hour: Int, _ minute: Int) -> some View {
+        let value = AddHabitView.time(hour, minute)
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
+        let selected = comps.hour == hour && comps.minute == minute
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { reminderTime = value }
+        } label: {
+            Text("\(icon) \(String(format: "%02d:%02d", hour, minute))")
+                .font(.cartoon(13, .bold))
+                .foregroundStyle(Ink.color)
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(selected ? color.light : Color.white))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(selected ? Ink.color : Ink.color.opacity(0.2), lineWidth: selected ? 2.5 : 1.5))
+        }
+        .buttonStyle(BouncyButtonStyle())
     }
 
     // MARK: - Logic
@@ -356,11 +474,49 @@ struct AddHabitView: View {
     }
 
     private func save() {
-        let habit = Habit(name: name.trimmingCharacters(in: .whitespaces),
-                          emoji: emoji.isEmpty ? "⭐️" : emoji,
-                          color: color, kind: kind,
-                          goal: goal, unit: unit, step: step)
-        withAnimation(.spring) { store.add(habit) }
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
+        var habit = existing ?? Habit(name: "", emoji: "", color: color, goal: 1, unit: "", step: 1)
+        habit.name = name.trimmingCharacters(in: .whitespaces)
+        habit.emoji = emoji.isEmpty ? "⭐️" : emoji
+        habit.color = color
+        habit.kind = kind
+        habit.goal = goal
+        habit.unit = unit
+        habit.step = step
+        habit.reminderHour = remind ? comps.hour : nil
+        habit.reminderMinute = remind ? comps.minute : nil
+
+        withAnimation(.spring) {
+            if existing != nil { store.update(habit) } else { store.add(habit) }
+        }
         dismiss()
+    }
+}
+
+/// Chunky on/off switch in the cartoon style.
+struct CartoonToggle: View {
+    @Binding var isOn: Bool
+    var color: HabitColor
+
+    var body: some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { isOn.toggle() }
+        } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Capsule()
+                    .fill(isOn ? color.main : Color.white)
+                Capsule()
+                    .stroke(Ink.color, lineWidth: 2.5)
+                Circle()
+                    .fill(Color.white)
+                    .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
+                    .frame(width: 26, height: 26)
+                    .padding(.horizontal, 4)
+            }
+            .frame(width: 58, height: 34)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Daily reminder")
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 }

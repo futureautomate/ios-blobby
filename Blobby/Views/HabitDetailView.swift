@@ -11,6 +11,7 @@ struct HabitDetailView: View {
     @State private var confettiStart: Date? = nil
     @State private var confettiLoop = false
     @State private var successTick = 0
+    @State private var showingEdit = false
 
     var body: some View {
         if let habit = store.habit(habitID) {
@@ -31,21 +32,32 @@ struct HabitDetailView: View {
             ScrollView {
                 VStack(spacing: 18) {
                     VStack(spacing: 6) {
-                        Text("\(habit.emoji) \(habit.name)")
+                        Text(habit.name)
                             .font(.cartoon(30))
                             .foregroundStyle(Ink.color)
-                        Text(habit.streak > 0 ? "🔥 \(habit.streak) day streak" : "Start your streak today")
-                            .font(.cartoon(15, .bold))
-                            .foregroundStyle(Ink.color)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .cartoonCard(radius: 14, fill: HabitColor.sunny.light)
+                            .multilineTextAlignment(.center)
+                        HStack(spacing: 8) {
+                            Text(habit.streak > 0 ? "🔥 \(habit.streak) day streak" : "Start your streak today")
+                                .font(.cartoon(15, .bold))
+                                .foregroundStyle(Ink.color)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .cartoonCard(radius: 14, fill: HabitColor.sunny.light)
+                            if let time = habit.reminderText {
+                                Label(time, systemImage: "bell.fill")
+                                    .font(.cartoon(15, .bold))
+                                    .foregroundStyle(Ink.color)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .cartoonCard(radius: 14, fill: habit.color.light)
+                            }
+                        }
                     }
 
                     // Blobby + falling emoji + floating labels
                     ZStack {
                         BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind,
-                                   size: 230, bump: bump, celebrate: celebrating)
+                                   size: 230, bump: bump, celebrate: celebrating, sticker: habit.emoji)
                             .onTapGesture { addStep(habit) }
 
                         ForEach(drops, id: \.self) { id in
@@ -128,6 +140,23 @@ struct HabitDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showingEdit = true } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundStyle(Ink.color)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white))
+                        .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
+                }
+                .accessibilityLabel("Edit habit")
+            }
+        }
+        .sheet(isPresented: $showingEdit) {
+            AddHabitView(existing: habit)
+                .environmentObject(store)
+        }
         .toolbarBackground(.hidden, for: .navigationBar)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: bump)
         .sensoryFeedback(.success, trigger: successTick)
