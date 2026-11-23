@@ -160,6 +160,15 @@ struct SettingsView: View {
                     .foregroundStyle(HabitFile.isShared ? HabitColor.mint.deep : HabitColor.coral.deep)
                     .frame(maxWidth: .infinity)
 
+                // Signing diagnostics: long-press to copy and send to the developer.
+                Text(ProvisioningInfo.report)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Ink.color.opacity(0.55))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.7)))
+
                 Text("Blobby v\(version) · built on Windows")
                     .font(.cartoon(13, .bold))
                     .foregroundStyle(Ink.color.opacity(0.45))

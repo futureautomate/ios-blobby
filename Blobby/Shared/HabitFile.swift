@@ -8,7 +8,15 @@ import WidgetKit
 /// entitlement), we fall back to the app's own Documents folder: the app keeps
 /// working, only the widget can't see the habits. Settings shows which mode is active.
 enum HabitFile {
-    static let appGroup = "group.com.futureautomate.blobby"
+    /// The group we asked for in our entitlements.
+    static let requestedGroup = "group.com.futureautomate.blobby"
+
+    /// The group we're actually allowed to use: whatever the embedded provisioning profile
+    /// lists (sideloading tools may rename it), falling back to the requested one.
+    static let appGroup: String = {
+        let groups = ProvisioningInfo.current?.appGroups ?? []
+        return groups.first(where: { $0.contains("blobby") }) ?? groups.first ?? requestedGroup
+    }()
     private static let fileName = "habits.json"
 
     static var sharedURL: URL? {
