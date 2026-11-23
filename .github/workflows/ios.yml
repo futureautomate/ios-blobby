@@ -15,10 +15,10 @@ env:
   BUNDLE_ID: com.futureautomate.blobby
 
 jobs:
-  # ---------- Simulator: build, run demo screens, screenshot + short video ----------
-  simulator:
+  # One job = one cloud Mac (two parallel macOS jobs got stuck on GitHub capacity).
+  build:
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 40
     permissions:
       contents: write          # to publish screenshots to the ci-screenshots branch
     steps:
@@ -82,27 +82,6 @@ jobs:
           path: screenshots/
           retention-days: 7
 
-      - name: Publish screenshots to ci-screenshots branch
-        run: |
-          SHA=${GITHUB_SHA::7}
-          cp -R screenshots /tmp/shots
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git checkout -q --orphan ci-screenshots
-          git rm -rfq . && git clean -fdxq
-          cp /tmp/shots/* .
-          echo "Screenshots for $SHA" > README.txt
-          git add -A && git commit -qm "screenshots $SHA"
-          git push -fq origin HEAD:ci-screenshots
-
-  # ---------- Device: unsigned IPA for Sideloadly ----------
-  device:
-    runs-on: macos-15
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Generate Xcode project
-        run: brew install xcodegen && xcodegen generate
       - name: Archive (unsigned)
         run: |
           set -o pipefail
@@ -123,3 +102,16 @@ jobs:
           name: ipa-unsigned
           path: "*-unsigned.ipa"
           retention-days: 7
+      - name: Publish screenshots to ci-screenshots branch
+        continue-on-error: true
+        run: |
+          SHA=${GITHUB_SHA::7}
+          cp -R screenshots /tmp/shots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout -q --orphan ci-screenshots
+          git rm -rfq . && git clean -fdxq
+          cp /tmp/shots/* .
+          echo "Screenshots for $SHA" > README.txt
+          git add -A && git commit -qm "screenshots $SHA"
+          git push -fq origin HEAD:ci-screenshots
