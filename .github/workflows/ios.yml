@@ -1,0 +1,125 @@
+name: iOS — screenshots + unsigned IPA
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["research/**", "**/*.md"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SCHEME: Blobby
+  BUNDLE_ID: com.futureautomate.blobby
+
+jobs:
+  # ---------- Simulator: build, run demo screens, screenshot + short video ----------
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write          # to publish screenshots to the ci-screenshots branch
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build for iOS Simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project "$SCHEME.xcodeproj" -scheme "$SCHEME" \
+            -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build \
+            | grep -E "error:|warning: .*\.swift|BUILD (SUCCEEDED|FAILED)" || true
+          test -d "build/Build/Products/Debug-iphonesimulator/$SCHEME.app"
+
+      - name: Run demo screens and capture
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          ids=[(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name']=='iPhone 16 Pro']
+          ids=ids or [(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
+          print(sorted(ids)[-1][1])")
+          echo "Simulator: $UDID"
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
+          xcrun simctl install "$UDID" "build/Build/Products/Debug-iphonesimulator/$SCHEME.app"
+          mkdir -p screenshots
+
+          shot () {  # name, then launch args
+            name=$1; shift
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@"
+            sleep 5
+            xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
+          }
+          shot 1-empty     -demo empty
+          shot 2-home      -demo sample
+          shot 3-detail    -demo sample -open 0
+          shot 4-done      -demo sample -open 1 -celebrate
+          shot 5-add       -demo sample -add
+
+          # short video of the logging animation (app auto-logs in -autolog mode)
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" -demo sample -open 0 -autolog
+          sleep 1
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force screenshots/6-logging.mp4 &
+          REC=$!
+          sleep 9
+          kill -INT $REC; wait $REC || true
+          ls -lh screenshots
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          retention-days: 7
+
+      - name: Publish screenshots to ci-screenshots branch
+        run: |
+          SHA=${GITHUB_SHA::7}
+          cp -R screenshots /tmp/shots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout -q --orphan ci-screenshots
+          git rm -rfq . && git clean -fdxq
+          cp /tmp/shots/* .
+          echo "Screenshots for $SHA" > README.txt
+          git add -A && git commit -qm "screenshots $SHA"
+          git push -fq origin HEAD:ci-screenshots
+
+  # ---------- Device: unsigned IPA for Sideloadly ----------
+  device:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: brew install xcodegen && xcodegen generate
+      - name: Archive (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -project "$SCHEME.xcodeproj" -scheme "$SCHEME" \
+            -configuration Release -sdk iphoneos -destination generic/platform=iOS \
+            -archivePath "build/$SCHEME.xcarchive" archive \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          test -d "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app"
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R "build/$SCHEME.xcarchive/Products/Applications/$SCHEME.app" Payload/
+          zip -qry "$SCHEME-unsigned.ipa" Payload
+          ls -lh "$SCHEME-unsigned.ipa"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa-unsigned
+          path: "*-unsigned.ipa"
+          retention-days: 7
