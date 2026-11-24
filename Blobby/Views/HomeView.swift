@@ -32,7 +32,9 @@ struct HomeView: View {
     /// The first habit that can be logged today gets the first-time hints.
     private var hintHabit: Habit? {
         guard Hints.enabled, !editing else { return nil }
-        return active.first { $0.isScheduled(on: Date()) && !$0.isDone() }
+        // Only the first card, so the hint row above the list points at the right habit.
+        guard let first = active.first, first.isScheduled(on: Date()), !first.isDone() else { return nil }
+        return first
     }
     private var hintStage: Int? {   // 1 = tap +, 2 = tap card
         if !hintLogDone { return 1 }
@@ -86,6 +88,26 @@ struct HomeView: View {
                                     .foregroundStyle(Ink.text.opacity(0.55))
                                     .transition(.opacity)
                             }
+                            // First-time hint sits in its own row above the first card, finger dipping onto it.
+                            if let stage = hintStage, let habit = hintHabit {
+                                HStack(spacing: 0) {
+                                    if stage == 1 { Spacer(minLength: 0) }
+                                    HintBubble(
+                                        text: stage == 1
+                                            ? "Tap + to give \(habit.kind.title) a sip!"
+                                            : "Tap the card to see \(habit.kind.title) up close",
+                                        color: stage == 1 ? .sunny : .mint,
+                                        fingerAlignment: stage == 1 ? .trailing : .leading,
+                                        onClose: { withAnimation(.spring) { if stage == 1 { hintLogDone = true } else { hintOpenDone = true } } })
+                                    if stage == 2 { Spacer(minLength: 0) }
+                                }
+                                .padding(.leading, stage == 2 ? 24 : 0)
+                                .padding(.trailing, stage == 1 ? 4 : 0)
+                                .padding(.bottom, -30)
+                                .zIndex(2)
+                                .id(stage)
+                                .transition(.scale(scale: 0.5, anchor: .bottom).combined(with: .opacity))
+                            }
                             ForEach(active) { habit in
                                 HabitCard(
                                     habit: habit,
@@ -113,22 +135,6 @@ struct HomeView: View {
                                 .modifier(ReorderModifier(habit: habit, enabled: editing,
                                                           dragging: $dragging, store: store))
                                 .opacity(dragging == habit.id ? 0.4 : 1)
-                                .overlay(alignment: hintStage == 1 ? .topTrailing : .topLeading) {
-                                    if let stage = hintStage, hintHabit?.id == habit.id {
-                                        HintBubble(
-                                            text: stage == 1
-                                                ? "Tap + to give \(habit.kind.title) a sip!"
-                                                : "Tap the card to see \(habit.kind.title) up close",
-                                            color: stage == 1 ? .sunny : .mint,
-                                            fingerAlignment: stage == 1 ? .trailing : .leading,
-                                            onClose: { withAnimation(.spring) { if stage == 1 { hintLogDone = true } else { hintOpenDone = true } } })
-                                        .alignmentGuide(.top) { d in d[.bottom] - 18 }
-                                        .padding(.horizontal, stage == 1 ? 4 : 30)
-                                        .id(stage)
-                                        .transition(.scale(scale: 0.5, anchor: .bottom).combined(with: .opacity))
-                                    }
-                                }
-                                .zIndex(hintHabit?.id == habit.id ? 1 : 0)
                                 .transition(.asymmetric(insertion: .scale.combined(with: .opacity),
                                                         removal: .opacity))
                             }

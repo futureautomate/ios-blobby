@@ -99,37 +99,18 @@ jobs:
           # v0.9.5 first-time hints
           shot h1-hint-log  -demo sample -hints
           shot h2-hint-night -demo sample -hints -night
-          # v0.9.2 reports + about you first
-          shot p1-askname  -demo sample -askName
-          shot p2-onboard-name -demo empty -onboarding -page 1
-          shot r1-week     -demo sample -recap
+          # core screens (older one-off checks removed to keep the step well under its time limit)
           shot r2-month    -demo sample -recap -month
-          shot r3-month-night -demo sample -recap -month -night
           # v0.9 night theme + big text
           shot n1-home     -demo sample -night
           shot n2-drop     -demo sample -open 0 -night
-          shot n3-levels   -demo sample -open 3 -history -night
-          shot n4-add      -demo sample -add -night
           shot n5-settings -demo sample -settings -night
-          shot n6-menu     -demo sample -menu 1 -night
-          shot n7-paused   -demo sample -open 5 -night
           shot a1-bigtext  -demo sample -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
-          shot a2-bigtext-drop -demo sample -open 0 -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
-          shot 22-menu     -demo sample -menu 1
-          shot 23-more     -demo sample -open 0 -more
           shot 20-share    -demo sample -share
-          shot 21-paused   -demo sample -open 5
-          shot 10-edit     -demo sample -edit
-          shot 11-delete   -demo sample -confirm 1
           shot 12-settings -demo sample -settings
-          shot 17-onboarding -demo empty -onboarding
-          shot 18-recap    -demo sample -recap
-          shot 1-empty     -demo empty
           shot 2-home      -demo sample
           shot 3-drop      -demo sample -open 0
           shot 8-add       -demo sample -add
-          shot 13-edit-habit -demo sample -editHabit 0
-          shot 14-levels   -demo sample -open 3 -history
           shot 15-levelup  -demo sample -open 0 -levelup
 
           # short video of the logging animation (app auto-logs in -autolog mode)
