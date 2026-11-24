@@ -96,6 +96,9 @@ jobs:
             sleep 5
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          # v0.9.5 first-time hints
+          shot h1-hint-log  -demo sample -hints
+          shot h2-hint-night -demo sample -hints -night
           # v0.9.2 reports + about you first
           shot p1-askname  -demo sample -askName
           shot p2-onboard-name -demo empty -onboarding -page 1

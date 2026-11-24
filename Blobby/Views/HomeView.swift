@@ -26,6 +26,19 @@ struct HomeView: View {
     @State private var showingShare = false
     @State private var menuFor: Habit?
     @AppStorage("tipLongPressSeen") private var tipSeen = false
+    @AppStorage(Hints.logKey) private var hintLogDone = false
+    @AppStorage(Hints.openKey) private var hintOpenDone = false
+
+    /// The first habit that can be logged today gets the first-time hints.
+    private var hintHabit: Habit? {
+        guard Hints.enabled, !editing else { return nil }
+        return active.first { $0.isScheduled(on: Date()) && !$0.isDone() }
+    }
+    private var hintStage: Int? {   // 1 = tap +, 2 = tap card
+        if !hintLogDone { return 1 }
+        if !hintOpenDone { return 2 }
+        return nil
+    }
 
     private var active: [Habit] { store.habits.filter { !$0.isPaused } }
     private var paused: [Habit] { store.habits.filter { $0.isPaused } }
@@ -48,7 +61,7 @@ struct HomeView: View {
                             EmptyStateView { showingAdd = true }
                                 .padding(.top, 30)
                         } else {
-                            if !tipSeen && !editing {
+                            if !tipSeen && !editing && hintStage == nil {
                                 HStack(spacing: 8) {
                                     Text("💡 Tip: press and hold a habit for more options")
                                         .font(.cartoon(13, .bold))
@@ -100,6 +113,22 @@ struct HomeView: View {
                                 .modifier(ReorderModifier(habit: habit, enabled: editing,
                                                           dragging: $dragging, store: store))
                                 .opacity(dragging == habit.id ? 0.4 : 1)
+                                .overlay(alignment: hintStage == 1 ? .topTrailing : .topLeading) {
+                                    if let stage = hintStage, hintHabit?.id == habit.id {
+                                        HintBubble(
+                                            text: stage == 1
+                                                ? "Tap + to give \(habit.kind.title) a sip!"
+                                                : "Tap the card to see \(habit.kind.title) up close",
+                                            color: stage == 1 ? .sunny : .mint,
+                                            fingerAlignment: stage == 1 ? .trailing : .leading,
+                                            onClose: { withAnimation(.spring) { if stage == 1 { hintLogDone = true } else { hintOpenDone = true } } })
+                                        .alignmentGuide(.top) { d in d[.bottom] - 18 }
+                                        .padding(.horizontal, stage == 1 ? 4 : 30)
+                                        .id(stage)
+                                        .transition(.scale(scale: 0.5, anchor: .bottom).combined(with: .opacity))
+                                    }
+                                }
+                                .zIndex(hintHabit?.id == habit.id ? 1 : 0)
                                 .transition(.asymmetric(insertion: .scale.combined(with: .opacity),
                                                         removal: .opacity))
                             }
@@ -114,6 +143,8 @@ struct HomeView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+            .onChange(of: store.lastLog?.id) { if store.lastLog != nil && !hintLogDone { withAnimation(.spring) { hintLogDone = true } } }
+            .onChange(of: path) { if !path.isEmpty && hintLogDone { hintOpenDone = true } }
             .navigationDestination(for: UUID.self) { id in
                 HabitDetailView(habitID: id)
             }
