@@ -218,6 +218,14 @@ struct SettingsView: View {
                         .background(RoundedRectangle(cornerRadius: 12).fill(Card.color.opacity(0.7)))
                 }
 
+                HStack(spacing: 18) {
+                    Link("Privacy policy", destination: URL(string: "https://futureautomate.github.io/ios-blobby/privacy.html")!)
+                    Link("Support", destination: URL(string: "https://futureautomate.github.io/ios-blobby/support.html")!)
+                }
+                .font(.cartoon(14, .bold))
+                .foregroundStyle(HabitColor.ocean.tone)
+                .frame(maxWidth: .infinity)
+
                 Text("Blobby v\(version) · built on Windows")
                     .font(.cartoon(13, .bold))
                     .foregroundStyle(Ink.text.opacity(0.45))

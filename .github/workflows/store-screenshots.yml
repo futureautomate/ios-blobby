@@ -1,0 +1,69 @@
+name: App Store screenshots (6.9" iPhone)
+
+# Run by hand (Actions → App Store screenshots → Run workflow) when the store images need refreshing.
+on:
+  workflow_dispatch:
+
+env:
+  SCHEME: Blobby
+  BUNDLE_ID: com.futureautomate.blobby
+
+jobs:
+  shots:
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Pick 6.9" simulator (iPhone Pro Max)
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          ids=[(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if 'Pro Max' in x['name']]
+          print(sorted(ids)[-1][1]); print(sorted(ids)[-1][2], file=sys.stderr)")
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Build for iOS Simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project "$SCHEME.xcodeproj" -scheme "$SCHEME" -sdk iphonesimulator \
+            -configuration Debug -derivedDataPath build CODE_SIGNING_ALLOWED=NO build \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          test -d "build/Build/Products/Debug-iphonesimulator/$SCHEME.app"
+      - name: Capture
+        timeout-minutes: 15
+        run: |
+          UDID="$SIM_UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --batteryState charged --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl install "$UDID" "build/Build/Products/Debug-iphonesimulator/$SCHEME.app"
+          mkdir -p store
+          shot () { name=$1; shift
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@"; sleep 6
+            xcrun simctl io "$UDID" screenshot "store/$name.png"; }
+          shot 01-today      -demo sample
+          shot 02-water      -demo sample -open 0
+          shot 03-levelup    -demo sample -levelup
+          shot 04-add        -demo sample -add
+          shot 05-reports    -demo sample -recap -month
+          shot 06-share      -demo sample -share
+          shot 07-night      -demo sample -night
+          shot 08-night-water -demo sample -open 0 -night
+          sips -g pixelWidth -g pixelHeight store/01-today.png
+      - uses: actions/upload-artifact@v4
+        with: { name: store-screenshots, path: store/, retention-days: 30 }
+      - name: Publish to store-screenshots branch
+        run: |
+          cp -R store /tmp/store
+          git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
+          git checkout -q --orphan store-screenshots
+          git rm -rfq . && git clean -fdxq
+          cp /tmp/store/* . && echo "Store screenshots for ${GITHUB_SHA::7}" > README.txt
+          git add -A && git commit -qm "store screenshots ${GITHUB_SHA::7}" && git push -fq origin HEAD:store-screenshots
