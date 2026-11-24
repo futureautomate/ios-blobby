@@ -207,11 +207,12 @@ struct ShareCardButton<Card: View>: View {
         Group {
             if compact {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 15, weight: .black))
+                    .font(.system(size: 16, weight: .black))
                     .foregroundStyle(Ink.color)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 44, height: 44)
                     .background(Circle().fill(Color.white))
                     .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
+                    .background(Circle().fill(Ink.color).offset(y: 3))
             } else {
                 Label("Share", systemImage: "square.and.arrow.up")
                     .font(.cartoon(17))

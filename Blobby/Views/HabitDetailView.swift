@@ -33,6 +33,8 @@ struct HabitDetailView: View {
                 .ignoresSafeArea()
             BackgroundBubbles(color: habit.color.main)
 
+            VStack(spacing: 0) {
+            header(habit)
             ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: 18) {
@@ -169,6 +171,7 @@ struct HabitDetailView: View {
                 }
             }
             }
+            }
 
             if let start = confettiStart {
                 ConfettiView(start: start, loop: confettiLoop,
@@ -207,30 +210,12 @@ struct HabitDetailView: View {
                 .zIndex(10)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                ShareCardButton(title: "\(habit.name) on Blobby", card: HabitShareCard(habit: habit), compact: true)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { showingMore = true } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .black))
-                        .foregroundStyle(Ink.color)
-                        .frame(width: 38, height: 38)
-                        .background(Circle().fill(Color.white))
-                        .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
-                }
-                .accessibilityLabel("More actions")
-            }
-        }
+        // Cartoon header instead of the standard iOS navigation bar.
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingEdit) {
             AddHabitView(existing: habit)
                 .environmentObject(store)
         }
-        // Solid bar in the habit's tint so scrolled content doesn't slide under Back / pencil.
-        .toolbarBackground(habit.color.light, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .sensoryFeedback(.impact(flexibility: .soft), trigger: bump)
         .sensoryFeedback(.success, trigger: successTick)
         .task {
@@ -248,6 +233,44 @@ struct HabitDetailView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Header
+
+    private func header(_ habit: Habit) -> some View {
+        HStack(spacing: 10) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .black))
+                    .foregroundStyle(Ink.color)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color.white))
+                    .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
+                    .background(Circle().fill(Ink.color).offset(y: 3))
+            }
+            .buttonStyle(BouncyButtonStyle())
+            .accessibilityLabel("Back to Today")
+
+            Spacer()
+
+            ShareCardButton(title: "\(habit.name) on Blobby", card: HabitShareCard(habit: habit), compact: true)
+
+            Button { showingMore = true } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .black))
+                    .foregroundStyle(Ink.color)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(HabitColor.sunny.main))
+                    .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
+                    .background(Circle().fill(Ink.color).offset(y: 3))
+            }
+            .buttonStyle(BouncyButtonStyle())
+            .accessibilityLabel("More actions")
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
+        .background(habit.color.light.ignoresSafeArea(edges: .top))
     }
 
     // MARK: - Actions
