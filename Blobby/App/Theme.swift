@@ -101,12 +101,38 @@ enum HabitColor: Int, Codable, CaseIterable, Identifiable, Hashable {
     }
 }
 
-/// Applies the Light / Night / Auto choice (root view and every sheet).
+/// Applies the Light / Night / Auto choice.
+/// Sets the window's interface style directly (instead of SwiftUI's preferredColorScheme),
+/// because going back to "Auto" with preferredColorScheme(nil) doesn't refresh the screen
+/// or sheet you're on until you navigate away.
 struct AppAppearance: ViewModifier {
     @AppStorage(Appearance.key) private var appearance = Appearance.auto.rawValue
 
+    private var style: UIUserInterfaceStyle {
+        if LaunchOptions.night { return .dark }
+        switch Appearance(rawValue: appearance) ?? .auto {
+        case .auto: return .unspecified
+        case .day: return .light
+        case .night: return .dark
+        }
+    }
+
     func body(content: Content) -> some View {
-        content.preferredColorScheme(LaunchOptions.night ? .dark : (Appearance(rawValue: appearance) ?? .auto).scheme)
+        content
+            .onAppear { apply() }
+            .onChange(of: appearance) { apply() }
+    }
+
+    private func apply() {
+        let style = self.style
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                UIView.transition(with: window, duration: 0.3, options: .transitionCrossDissolve) {
+                    window.overrideUserInterfaceStyle = style
+                }
+            }
+        }
     }
 }
 
