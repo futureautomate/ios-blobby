@@ -17,10 +17,9 @@ enum Profile {
         HabitColor(rawValue: UserDefaults.standard.integer(forKey: colorKey)) ?? .ocean
     }
 
-    /// "Tejas's" / "James'" / "My"
+    /// "Tejas's" / "Riya's" / "My"
     static func possessive(_ name: String = Profile.name) -> String {
-        guard !name.isEmpty else { return "My" }
-        return name.lowercased().hasSuffix("s") ? "\(name)'" : "\(name)'s"
+        name.isEmpty ? "My" : "\(name)'s"
     }
 
     /// "Good evening, Tejas"
