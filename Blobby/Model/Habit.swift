@@ -166,6 +166,35 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     }
     var totalLogged: Double { log.values.reduce(0, +) }
 
+    /// First day anything was logged (used so reports don't count days before the habit existed).
+    var firstLogDay: Date? {
+        log.filter { $0.value > 0 }.keys.compactMap { Habit.date(fromKey: $0) }.min()
+    }
+
+    /// Done / scheduled days and amount logged between two days (inclusive),
+    /// ignoring days before the first log and days after today.
+    func stats(from start: Date, to end: Date) -> (done: Int, scheduled: Int, amount: Double) {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let first = firstLogDay.map { cal.startOfDay(for: $0) } ?? today
+        var day = cal.startOfDay(for: start)
+        let last = min(cal.startOfDay(for: end), today)
+        var done = 0, scheduled = 0
+        var amount = 0.0
+        while day <= last {
+            if day >= first {
+                amount += self.amount(on: day)
+                if isScheduled(on: day) {
+                    scheduled += 1
+                    if isDone(on: day) { done += 1 }
+                }
+            }
+            guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return (done, scheduled, amount)
+    }
+
     /// "42.5 L" for ml habits, otherwise "1,250 pages".
     func formatTotal(_ value: Double) -> String {
         if unit.lowercased() == "ml" && value >= 1000 { return "\((value / 1000).clean) L" }

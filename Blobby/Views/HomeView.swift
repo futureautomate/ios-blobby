@@ -15,6 +15,10 @@ struct HomeView: View {
     @State private var editingHabit: Habit?
     @State private var showingRecap = false
     @State private var showingOnboarding = false
+    @AppStorage(Profile.nameKey) private var profileName = ""
+    @AppStorage(Profile.kindKey) private var profileKind = MascotKind.blob.rawValue
+    @AppStorage(Profile.colorKey) private var profileColor = HabitColor.ocean.rawValue
+    @State private var askName = false
     @State private var levelUp: (habit: Habit, accessory: Accessory)?
     @AppStorage("onboarded") private var onboarded = false
     @State private var dragging: UUID?
@@ -144,6 +148,12 @@ struct HomeView: View {
             }
         }
         .overlay {
+            if askName {
+                AboutYouPopup { withAnimation(.spring) { askName = false } }
+                    .transition(.opacity)
+            }
+        }
+        .overlay {
             if let lu = levelUp {
                 LevelUpPopup(habit: lu.habit, accessory: lu.accessory) {
                     withAnimation(.spring) { levelUp = nil }
@@ -200,6 +210,11 @@ struct HomeView: View {
             // First launch: onboarding. Existing users with habits skip it.
             if LaunchOptions.demo == nil && !onboarded {
                 if store.habits.isEmpty { showingOnboarding = true } else { onboarded = true }
+            }
+            // People who had the app before names existed: ask once.
+            if (LaunchOptions.demo == nil && onboarded && !showingOnboarding && Profile.name.isEmpty)
+                || LaunchOptions.askName {
+                askName = true
             } else if LaunchOptions.demo == nil && WeeklyRecap.isDue && !store.habits.isEmpty {
                 showingRecap = true
             }
@@ -279,9 +294,20 @@ struct HomeView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    if !profileName.isEmpty {
+                        BlobMascot(progress: 0.65, color: HabitColor(rawValue: profileColor) ?? .ocean,
+                                   kind: MascotKind(rawValue: profileKind) ?? .blob, size: 26, animated: false)
+                    }
+                    Text(Profile.greeting(profileName.trimmingCharacters(in: .whitespaces)))
+                        .font(.cartoon(15, .bold))
+                        .foregroundStyle((HabitColor(rawValue: profileColor) ?? .ocean).tone)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
                 Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)).uppercased())
-                    .font(.cartoon(13, .bold))
-                    .foregroundStyle(Ink.text.opacity(0.5))
+                    .font(.cartoon(12, .bold))
+                    .foregroundStyle(Ink.text.opacity(0.45))
                 Text("Today")
                     .font(.cartoon(40))
                     .foregroundStyle(Ink.text)
@@ -311,6 +337,8 @@ struct HomeView: View {
                 .transition(.scale.combined(with: .opacity))
             } else {
                 HStack(spacing: 12) {
+                    circleButton("chart.bar.fill", fill: Card.color, size: 46) { showingRecap = true }
+                        .accessibilityLabel("Reports")
                     circleButton("gearshape.fill", fill: Card.color, size: 46) { showingSettings = true }
                         .accessibilityLabel("Settings")
                     circleButton("plus", fill: HabitColor.sunny.main, ink: Ink.color, size: 56) { showingAdd = true }

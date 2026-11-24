@@ -89,6 +89,12 @@ final class HabitStore: ObservableObject {
         save()
     }
 
+    /// Restore from a backup file.
+    func replaceAll(_ newHabits: [Habit]) {
+        habits = newHabits
+        save()
+    }
+
     /// Replaces everything with the 5 demo habits (handy for testing).
     func loadSample() {
         habits = HabitStore.sample()
@@ -184,4 +190,7 @@ enum LaunchOptions {
     static var menuIndex: Int? { value("-menu").flatMap { Int($0) } }
     static var showMore: Bool { args.contains("-more") }
     static var night: Bool { args.contains("-night") }
+    static var reportMonth: Bool { args.contains("-month") }
+    static var askName: Bool { args.contains("-askName") }
+    static var onboardingPage: Int { value("-page").flatMap { Int($0) } ?? 0 }
 }

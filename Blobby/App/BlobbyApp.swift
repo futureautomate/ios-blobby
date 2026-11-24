@@ -9,6 +9,11 @@ struct BlobbyApp: App {
     init() {
         // Must be set early so tapping a reminder on a cold start still reaches us.
         UNUserNotificationCenter.current().delegate = Reminders.shared
+        // CI screenshots: a sample person for the "sample" demo, nobody for the "empty" demo.
+        if let demo = LaunchOptions.demo {
+            if demo == "sample" && !LaunchOptions.askName { Profile.save(name: "Tejas", kind: .blob, color: .grape) }
+            else { Profile.save(name: "", kind: .blob, color: .ocean) }
+        }
     }
 
     var body: some Scene {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Cartoon confirmation popup (replaces the system alert / context menu).
 /// Shows the habit's character looking sad, with "Keep it" and a destructive button.
@@ -108,8 +109,14 @@ struct SettingsView: View {
     @EnvironmentObject var store: HabitStore
     @Environment(\.dismiss) private var dismiss
 
-    private enum Pending { case reset, sample }
+    private enum Pending: Equatable { case reset, sample, restore }
     @State private var pending: Pending?
+    @State private var showingAbout = false
+    @State private var exporting = false
+    @State private var importing = false
+    @State private var restoreFrom: Backup?
+    @State private var backupMessage: String?
+    @AppStorage(Profile.nameKey) private var profileName = ""
     @State private var showingRecap = false
     @State private var showSigning = false
     @AppStorage(SoundFX.settingKey) private var soundOn = true
@@ -141,7 +148,28 @@ struct SettingsView: View {
                     .buttonStyle(BouncyButtonStyle())
                 }
 
+                row(emoji: "🙂", title: profileName.isEmpty ? "About you" : profileName,
+                    subtitle: "Change your name or buddy") {
+                    withAnimation(.spring) { showingAbout = true }
+                }
+
                 appearancePicker
+
+                row(emoji: "📤", title: "Export backup",
+                    subtitle: "Save all habits and history to a file (Files, iCloud Drive, WhatsApp…)") {
+                    exporting = true
+                }
+                row(emoji: "📥", title: "Import backup",
+                    subtitle: "Restore from a Blobby backup file") {
+                    importing = true
+                }
+                if let msg = backupMessage {
+                    Text(msg)
+                        .font(.cartoon(13, .bold))
+                        .foregroundStyle(Ink.text.opacity(0.65))
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity)
+                }
 
                 row(emoji: "🧹", title: "Reset all data",
                     subtitle: "Delete every habit and its history") {
@@ -151,8 +179,8 @@ struct SettingsView: View {
                     subtitle: "Replace everything with 5 demo habits (for testing)") {
                     withAnimation(.spring) { pending = .sample }
                 }
-                row(emoji: "📅", title: "Weekly recap",
-                    subtitle: "Your buddies' report card for the last 7 days") {
+                row(emoji: "📊", title: "Reports",
+                    subtitle: "Week and month report cards, all habits together") {
                     showingRecap = true
                 }
 
@@ -202,22 +230,65 @@ struct SettingsView: View {
 
             if let p = pending {
                 CartoonConfirm(
-                    title: p == .reset ? "Reset everything?" : "Load sample habits?",
+                    title: p == .reset ? "Reset everything?" : (p == .sample ? "Load sample habits?" : "Restore this backup?"),
                     message: p == .reset
                         ? "All habits and their history will be deleted. This can't be undone."
-                        : "Your current habits will be replaced by 5 demo habits.",
-                    color: p == .reset ? .coral : .grape,
-                    kind: p == .reset ? .blob : .sprout,
-                    confirmTitle: p == .reset ? "Reset" : "Replace",
-                    onCancel: { withAnimation(.spring) { pending = nil } },
+                        : (p == .sample ? "Your current habits will be replaced by 5 demo habits."
+                           : "Your current habits will be replaced by the \(restoreFrom?.habits.count ?? 0) habits in the backup."),
+                    color: p == .reset ? .coral : (p == .sample ? .grape : .ocean),
+                    kind: p == .reset ? .blob : (p == .sample ? .sprout : .drop),
+                    confirmTitle: p == .reset ? "Reset" : (p == .sample ? "Replace" : "Restore"),
+                    onCancel: { withAnimation(.spring) { pending = nil; restoreFrom = nil } },
                     onConfirm: {
                         withAnimation(.spring) {
-                            if p == .reset { store.reset() } else { store.loadSample() }
+                            switch p {
+                            case .reset: store.reset()
+                            case .sample: store.loadSample()
+                            case .restore:
+                                if let b = restoreFrom {
+                                    store.replaceAll(b.habits)
+                                    if !b.name.isEmpty {
+                                        Profile.save(name: b.name, kind: MascotKind(rawValue: b.kind) ?? .blob,
+                                                     color: HabitColor(rawValue: b.color) ?? .ocean)
+                                        profileName = b.name
+                                    }
+                                }
+                                restoreFrom = nil
+                            }
                             pending = nil
                         }
                         dismiss()
                     })
                 .transition(.opacity)
+            }
+
+            if showingAbout {
+                AboutYouPopup(onCancel: { withAnimation(.spring) { showingAbout = false } },
+                              onSave: {
+                                  profileName = Profile.name
+                                  withAnimation(.spring) { showingAbout = false }
+                              })
+                .transition(.opacity)
+            }
+        }
+        .fileExporter(isPresented: $exporting,
+                      document: BackupDocument(data: Backup.current(store.habits).encoded()),
+                      contentType: .json,
+                      defaultFilename: Backup.fileName) { result in
+            withAnimation {
+                if case .success = result { backupMessage = "✅ Backup saved" }
+                else { backupMessage = nil }
+            }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+            guard case .success(let url) = result else { return }
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url), let backup = Backup.decode(data) {
+                restoreFrom = backup
+                withAnimation(.spring) { pending = .restore }
+            } else {
+                withAnimation { backupMessage = "😕 That file isn't a Blobby backup" }
             }
         }
         .sheet(isPresented: $showingRecap) {

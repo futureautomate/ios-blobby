@@ -27,8 +27,9 @@ private struct CardFrame<Content: View>: View {
                 content
                 Spacer(minLength: 0)
                 HStack(spacing: 6) {
-                    BlobMascot(progress: 0.6, color: .ocean, kind: .drop, size: 22, animated: false)
-                    Text("Made with Blobby")
+                    BlobMascot(progress: 0.6, color: Profile.name.isEmpty ? .ocean : Profile.color,
+                               kind: Profile.name.isEmpty ? .drop : Profile.kind, size: 22, animated: false)
+                    Text(Profile.name.isEmpty ? "Made with Blobby" : "\(Profile.name) · made with Blobby")
                         .font(.cartoonFixed(12, .bold))
                         .foregroundStyle(Ink.text.opacity(0.5))
                 }
@@ -70,7 +71,7 @@ struct WeekShareCard: View {
         CardFrame(tint: star?.color ?? .ocean) {
             VStack(spacing: 10) {
                 VStack(spacing: 2) {
-                    Text("My week")
+                    Text("\(Profile.possessive()) week")
                         .font(.cartoonFixed(28))
                         .foregroundStyle(Ink.text)
                     Text("\(start.formatted(.dateTime.day().month())) – \(endDay.formatted(.dateTime.day().month()))")
