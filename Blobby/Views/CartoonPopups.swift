@@ -171,6 +171,15 @@ struct SettingsView: View {
                         .transition(.opacity)
                 }
 
+                row(emoji: "💡", title: "Show tips again",
+                    subtitle: "Replay the first-time hints on Today") {
+                    let d = UserDefaults.standard
+                    d.set(false, forKey: Hints.logKey)
+                    d.set(false, forKey: Hints.openKey)
+                    d.set(false, forKey: "tipLongPressSeen")
+                    dismiss()
+                }
+
                 row(emoji: "🧹", title: "Reset all data",
                     subtitle: "Delete every habit and its history") {
                     withAnimation(.spring) { pending = .reset }
