@@ -60,7 +60,7 @@ jobs:
           path: "*-unsigned.ipa"
           retention-days: 7
       - name: Run demo screens and capture
-        timeout-minutes: 8          # a hung simulator must not block anything
+        timeout-minutes: 15         # a hung simulator must not block anything
         continue-on-error: true
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "
@@ -82,6 +82,11 @@ jobs:
             sleep 5
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          shot 11-delete   -demo sample -confirm 1
+          shot 12-settings -demo sample -settings
+          shot 17-onboarding -demo empty -onboarding
+          shot 18-recap    -demo sample -recap
+          shot 19-toast    -demo sample -toast
           shot 1-empty     -demo empty
           shot 2-home      -demo sample
           shot 3-drop      -demo sample -open 0
@@ -91,15 +96,10 @@ jobs:
           shot 7-apple     -demo sample -open 4
           shot 8-add       -demo sample -add
           shot 10-edit     -demo sample -edit
-          shot 11-delete   -demo sample -confirm 1
-          shot 12-settings -demo sample -settings
           shot 13-edit-habit -demo sample -editHabit 0
           shot 14-levels   -demo sample -open 3 -history
           shot 15-levelup  -demo sample -open 0 -levelup
           shot 16-read-levels -demo sample -open 2 -history
-          shot 17-onboarding -demo empty -onboarding
-          shot 18-recap    -demo sample -recap
-          shot 19-toast    -demo sample -toast
 
           # short video of the logging animation (app auto-logs in -autolog mode)
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
