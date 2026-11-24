@@ -25,10 +25,10 @@ struct LevelCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(habit.levelTitle)
                         .font(.cartoon(20))
-                        .foregroundStyle(Ink.color)
+                        .foregroundStyle(Ink.text)
                     Text("Best streak: \(best) day\(best == 1 ? "" : "s")")
                         .font(.cartoon(13, .semibold))
-                        .foregroundStyle(Ink.color.opacity(0.55))
+                        .foregroundStyle(Ink.text.opacity(0.55))
                 }
                 Spacer()
             }
@@ -38,7 +38,7 @@ struct LevelCard: View {
             Text(next.map { "\(max($0.days - best, 0)) more day\($0.days - best == 1 ? "" : "s") in a row to unlock \($0.emoji) \($0.title)" }
                  ?? "Max level! \(habit.kind.title) is royalty 👑")
                 .font(.cartoon(13, .bold))
-                .foregroundStyle(habit.color.deep)
+                .foregroundStyle(habit.color.tone)
 
             HStack(spacing: 0) {
                 ForEach(Accessory.allCases) { acc in
@@ -60,7 +60,7 @@ struct LevelCard: View {
                 } else {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Ink.color.opacity(0.3))
+                        .foregroundStyle(Ink.text.opacity(0.3))
                 }
                 Circle().stroke(unlocked ? Ink.color : Ink.color.opacity(0.25),
                                 style: StrokeStyle(lineWidth: 2.5, dash: unlocked ? [] : [4, 3]))
@@ -68,7 +68,7 @@ struct LevelCard: View {
             .frame(width: 46, height: 46)
             Text(unlocked ? acc.title : "\(acc.days) days")
                 .font(.cartoon(11, .bold))
-                .foregroundStyle(Ink.color.opacity(unlocked ? 0.8 : 0.4))
+                .foregroundStyle(Ink.text.opacity(unlocked ? 0.8 : 0.4))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -105,11 +105,11 @@ struct LevelUpPopup: View {
                     .padding(.top, 34)   // room for the hat / crown above the character
                 Text("\(habit.kind.title) earned \(accessory.emoji) \(accessory.title)")
                     .font(.cartoon(20))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .multilineTextAlignment(.center)
                 Text("\(accessory.days) days in a row of \(habit.name.lowercased()). Level \(habit.level) · \(accessory.levelTitle)")
                     .font(.cartoon(14, .semibold))
-                    .foregroundStyle(Ink.color.opacity(0.6))
+                    .foregroundStyle(Ink.text.opacity(0.6))
                     .multilineTextAlignment(.center)
                 Button(action: onClose) {
                     Text("Yay!")
@@ -152,12 +152,12 @@ struct HistoryCard: View {
             HStack {
                 Text("History")
                     .font(.cartoon(18))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                 Spacer()
                 monthButton("chevron.left") { shift(-1) }
                 Text(month.formatted(.dateTime.month(.wide).year()))
                     .font(.cartoon(15, .bold))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .frame(minWidth: 120)
                     .contentTransition(.numericText())
                 monthButton("chevron.right") { shift(1) }
@@ -170,7 +170,7 @@ struct HistoryCard: View {
                 ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, d in
                     Text(d)
                         .font(.cartoon(11, .bold))
-                        .foregroundStyle(Ink.color.opacity(0.45))
+                        .foregroundStyle(Ink.text.opacity(0.45))
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -222,7 +222,7 @@ struct HistoryCard: View {
             }
             Text("\(cal.component(.day, from: day))")
                 .font(.cartoon(12, done ? .heavy : .bold))
-                .foregroundStyle(done ? Color.white : Ink.color.opacity(future ? 0.25 : 0.7))
+                .foregroundStyle(done ? Color.white : Ink.text.opacity(future ? 0.25 : 0.7))
             if today {
                 Circle().stroke(Ink.color, lineWidth: 2.5)
             }
@@ -236,12 +236,12 @@ struct HistoryCard: View {
             Text(icon).font(.system(size: 18))
             Text(value)
                 .font(.cartoon(16))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
                 .font(.cartoon(11, .semibold))
-                .foregroundStyle(Ink.color.opacity(0.5))
+                .foregroundStyle(Ink.text.opacity(0.5))
         }
         .frame(maxWidth: .infinity)
     }
@@ -250,7 +250,7 @@ struct HistoryCard: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .black))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .frame(width: 32, height: 32)
                 .background(Circle().fill(habit.color.light))
                 .overlay(Circle().stroke(Ink.color, lineWidth: 2))

@@ -25,11 +25,11 @@ struct CartoonConfirm: View {
                     .allowsHitTesting(false)
                 Text(title)
                     .font(.cartoon(22))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .multilineTextAlignment(.center)
                 Text(message)
                     .font(.cartoon(15, .medium))
-                    .foregroundStyle(Ink.color.opacity(0.6))
+                    .foregroundStyle(Ink.text.opacity(0.6))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -37,7 +37,7 @@ struct CartoonConfirm: View {
                     Button(action: onCancel) {
                         Text("Keep it")
                             .font(.cartoon(17))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
                     }
@@ -80,7 +80,7 @@ struct PoofView: View {
             }
             Text("poof!")
                 .font(.cartoon(24))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .scaleEffect(go ? 1.3 : 0.5)
                 .opacity(go ? 0 : 1)
         }
@@ -113,6 +113,7 @@ struct SettingsView: View {
     @State private var showingRecap = false
     @State private var showSigning = false
     @AppStorage(SoundFX.settingKey) private var soundOn = true
+    @AppStorage(Appearance.key) private var appearance = Appearance.auto.rawValue
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
@@ -122,22 +123,25 @@ struct SettingsView: View {
         ZStack {
             Paper.color.ignoresSafeArea()
 
+            ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Text("Settings")
                         .font(.cartoon(30))
-                        .foregroundStyle(Ink.color)
+                        .foregroundStyle(Ink.text)
                     Spacer()
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .black))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                             .frame(width: 42, height: 42)
-                            .background(Circle().fill(Color.white))
+                            .background(Circle().fill(Card.color))
                             .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
                     }
                     .buttonStyle(BouncyButtonStyle())
                 }
+
+                appearancePicker
 
                 row(emoji: "🧹", title: "Reset all data",
                     subtitle: "Delete every habit and its history") {
@@ -155,9 +159,9 @@ struct SettingsView: View {
                 HStack(spacing: 14) {
                     Text("🔊").font(.system(size: 30))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Sound effects").font(.cartoon(18)).foregroundStyle(Ink.color)
+                        Text("Sound effects").font(.cartoon(18)).foregroundStyle(Ink.text)
                         Text("Pops, chimes and fanfares (follows the silent switch)")
-                            .font(.cartoon(13, .medium)).foregroundStyle(Ink.color.opacity(0.55))
+                            .font(.cartoon(13, .medium)).foregroundStyle(Ink.text.opacity(0.55))
                     }
                     Spacer()
                     CartoonToggle(isOn: $soundOn, color: .mint)
@@ -165,34 +169,36 @@ struct SettingsView: View {
                 .padding(16)
                 .cartoonCard(radius: 22)
 
-                Spacer(minLength: 10)
+                Color.clear.frame(height: 10)
 
                 // Signing details (useful when debugging sideloaded builds). Tap to expand.
                 Button { withAnimation(.spring) { showSigning.toggle() } } label: {
                     Label(showSigning ? "Hide signing info" : "Signing info",
                           systemImage: showSigning ? "chevron.up" : "info.circle")
                         .font(.cartoon(12, .bold))
-                        .foregroundStyle(Ink.color.opacity(0.45))
+                        .foregroundStyle(Ink.text.opacity(0.45))
                 }
                 .frame(maxWidth: .infinity)
                 if showSigning {
                     Text(ProvisioningInfo.report)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Ink.color.opacity(0.55))
+                        .foregroundStyle(Ink.text.opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.7)))
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Card.color.opacity(0.7)))
                 }
 
                 Text("Blobby v\(version) · built on Windows")
                     .font(.cartoon(13, .bold))
-                    .foregroundStyle(Ink.color.opacity(0.45))
+                    .foregroundStyle(Ink.text.opacity(0.45))
                     .frame(maxWidth: .infinity)
             }
             .padding(20)
             .padding(.top, 8)
+            }
+            .scrollBounceBehavior(.basedOnSize)
 
             if let p = pending {
                 CartoonConfirm(
@@ -222,7 +228,42 @@ struct SettingsView: View {
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(34)
         .presentationBackground(Paper.color)
-        .preferredColorScheme(.light)
+        .appAppearance()
+    }
+
+    /// Auto / Light / Night chips.
+    private var appearancePicker: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 14) {
+                Text("🌗").font(.system(size: 30))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Look").font(.cartoon(18)).foregroundStyle(Ink.text)
+                    Text("Auto follows your iPhone's dark mode")
+                        .font(.cartoon(13, .medium)).foregroundStyle(Ink.text.opacity(0.55))
+                }
+            }
+            HStack(spacing: 10) {
+                ForEach(Appearance.allCases) { option in
+                    let selected = appearance == option.rawValue
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { appearance = option.rawValue }
+                    } label: {
+                        VStack(spacing: 2) {
+                            Text(option.emoji).font(.system(size: 22))
+                            Text(option.title).font(.cartoon(14)).foregroundStyle(selected ? Ink.color : Ink.text)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .cartoonCard(radius: 16, fill: selected ? HabitColor.sunny.main : Card.color)
+                    }
+                    .buttonStyle(BouncyButtonStyle())
+                    .accessibilityLabel("\(option.title) look")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+        }
+        .padding(16)
+        .cartoonCard(radius: 22)
     }
 
     private func row(emoji: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
@@ -230,14 +271,14 @@ struct SettingsView: View {
             HStack(spacing: 14) {
                 Text(emoji).font(.system(size: 30))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.cartoon(18)).foregroundStyle(Ink.color)
-                    Text(subtitle).font(.cartoon(13, .medium)).foregroundStyle(Ink.color.opacity(0.55))
+                    Text(title).font(.cartoon(18)).foregroundStyle(Ink.text)
+                    Text(subtitle).font(.cartoon(13, .medium)).foregroundStyle(Ink.text.opacity(0.55))
                         .multilineTextAlignment(.leading)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .black))
-                    .foregroundStyle(Ink.color.opacity(0.4))
+                    .foregroundStyle(Ink.text.opacity(0.4))
             }
             .padding(16)
         }
@@ -281,10 +322,10 @@ struct HabitActionMenu: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(habit.name)
                             .font(.cartoon(20))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                         Text(habit.isPaused ? "Paused" : "\(habit.amount().clean) / \(habit.goal.clean) \(habit.unit) today")
                             .font(.cartoon(13, .semibold))
-                            .foregroundStyle(Ink.color.opacity(0.55))
+                            .foregroundStyle(Ink.text.opacity(0.55))
                     }
                     Spacer()
                 }
@@ -302,11 +343,11 @@ struct HabitActionMenu: View {
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(item.title)
                                     .font(.cartoon(17))
-                                    .foregroundStyle(item.destructive ? HabitColor.coral.deep : Ink.color)
+                                    .foregroundStyle(item.destructive ? HabitColor.coral.tone : Ink.text)
                                 if let sub = item.subtitle {
                                     Text(sub)
                                         .font(.cartoon(12, .semibold))
-                                        .foregroundStyle(Ink.color.opacity(0.5))
+                                        .foregroundStyle(Ink.text.opacity(0.5))
                                 }
                             }
                             Spacer()
@@ -315,7 +356,7 @@ struct HabitActionMenu: View {
                         .frame(minHeight: 52)
                         .contentShape(Rectangle())
                     }
-                    .cartoonCard(radius: 16, fill: item.destructive ? HabitColor.coral.light : .white)
+                    .cartoonCard(radius: 16, fill: item.destructive ? HabitColor.coral.light : Card.color)
                     .buttonStyle(BouncyButtonStyle())
                     .accessibilityLabel(item.title)
                     .accessibilityHint(item.subtitle ?? "")

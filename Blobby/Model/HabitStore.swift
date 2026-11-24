@@ -183,4 +183,5 @@ enum LaunchOptions {
     static var showShare: Bool { args.contains("-share") }
     static var menuIndex: Int? { value("-menu").flatMap { Int($0) } }
     static var showMore: Bool { args.contains("-more") }
+    static var night: Bool { args.contains("-night") }
 }

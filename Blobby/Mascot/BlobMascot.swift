@@ -37,10 +37,23 @@ struct BlobMascot: View {
 
     @State private var fill: Double = 0
     @State private var squash: Bool = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+
+    /// What VoiceOver reads for the character.
+    private var spokenLabel: String {
+        var parts = ["\(kind.title)"]
+        if sleepy { parts.append("asleep, habit paused") }
+        else if sad { parts.append("looking sad") }
+        else if progress >= 1 { parts.append("done for today") }
+        else { parts.append("\(Int((min(max(progress, 0), 1) * 100).rounded())) percent of today's goal") }
+        if !accessories.isEmpty { parts.append("wearing " + accessories.map { $0.title.lowercased() }.joined(separator: ", ")) }
+        return parts.joined(separator: ", ")
+    }
 
     var body: some View {
         Group {
-            if animated {
+            if animated && !reduceMotion {
                 TimelineView(.animation) { timeline in
                     scene(t: timeline.date.timeIntervalSinceReferenceDate)
                 }
@@ -48,6 +61,9 @@ struct BlobMascot: View {
                 scene(t: 0.6)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenLabel)
+        .accessibilityAddTraits(.isImage)
         .onAppear { fill = progress }
         .onChange(of: progress) {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.55)) {
@@ -55,6 +71,7 @@ struct BlobMascot: View {
             }
         }
         .onChange(of: bump) {
+            guard !reduceMotion else { return }
             withAnimation(.easeOut(duration: 0.08)) { squash = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
                 withAnimation(.spring(response: 0.45, dampingFraction: 0.32)) { squash = false }
@@ -67,6 +84,13 @@ struct BlobMascot: View {
             let breathe = 1.0 + 0.015 * CGFloat(sin(t * 2.0))
 
             return ZStack {
+                // Night: a soft glow in the habit colour so the character doesn't sink into the dark sky.
+                if scheme == .dark {
+                    Circle()
+                        .fill(color.main.opacity(0.28))
+                        .frame(width: size * 0.92, height: size * 0.92)
+                        .blur(radius: size * 0.09)
+                }
                 // Ground shadow — shrinks while jumping.
                 Ellipse()
                     .fill(Ink.color.opacity(0.13))
@@ -175,7 +199,7 @@ struct BlobMascot: View {
     private func liquidBody<S: Shape>(_ shape: S, t: Double, faceY: CGFloat, faceScale: CGFloat, gloss: CGPoint) -> some View {
         let line = max(2.5, size * 0.03)
         return ZStack {
-            shape.fill(color.light)
+            shape.fill(color.pastel)
 
             LiquidWave(level: shownFill, phase: t * 2.0 + 1.6, amplitude: size * 0.03)
                 .fill(color.main.opacity(0.45))
@@ -335,7 +359,7 @@ private struct SunCharacter: View {
             }
             .rotationEffect(spin)
 
-            Circle().fill(color.light).frame(width: core, height: core)
+            Circle().fill(color.pastel).frame(width: core, height: core)
             Circle()
                 .fill(RadialGradient(colors: [color.main.opacity(0.7), color.main],
                                      center: .center, startRadius: 0, endRadius: core / 2))
@@ -598,7 +622,7 @@ struct StickerBadge: View {
         Text(emoji)
             .font(.system(size: size * 0.56))
             .frame(width: size, height: size)
-            .background(Circle().fill(Color.white))
+            .background(Circle().fill(Card.color))
             .overlay(Circle().stroke(Ink.color, lineWidth: max(1.5, size * 0.08)))
             .shadow(color: Ink.color.opacity(0.25), radius: 0, x: 0, y: max(1, size * 0.06))
     }

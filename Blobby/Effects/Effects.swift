@@ -11,11 +11,20 @@ struct ConfettiView: View {
     let start: Date
     var loop: Bool = false
     var colors: [Color] = [.pink, .yellow, .mint, .blue, .orange, .purple]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let count = 80
     private let life: Double = 2.6
 
     var body: some View {
+        if reduceMotion {
+            Color.clear.allowsHitTesting(false)
+        } else {
+            burst
+        }
+    }
+
+    private var burst: some View {
         TimelineView(.animation) { timeline in
             Canvas { ctx, size in
                 let elapsed = timeline.date.timeIntervalSince(start)
@@ -85,7 +94,7 @@ struct FloatingLabel: View {
         Text(text)
             .font(.cartoon(26))
             .foregroundStyle(color)
-            .shadow(color: .white, radius: 0, x: 2, y: 2)
+            .shadow(color: Paper.color, radius: 0, x: 2, y: 2)
             .offset(x: 70, y: up ? -190 : -110)
             .opacity(up ? 0 : 1)
             .scaleEffect(up ? 1.2 : 0.8)
@@ -98,10 +107,12 @@ struct FloatingLabel: View {
 /// Soft floating circles behind screens.
 struct BackgroundBubbles: View {
     var color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
+            let t = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 ZStack {
                     ForEach(0..<6, id: \.self) { i in
@@ -112,6 +123,17 @@ struct BackgroundBubbles: View {
                             .fill(color.opacity(0.10 + rand(i) * 0.08))
                             .frame(width: d, height: d)
                             .position(x: x, y: y)
+                    }
+                    // Night sky: a few twinkling stars.
+                    if scheme == .dark {
+                        ForEach(0..<14, id: \.self) { i in
+                            let twinkle = 0.35 + 0.65 * abs(sin(t * (0.6 + rand(i * 23)) + Double(i)))
+                            Text(i % 3 == 0 ? "✦" : "·")
+                                .font(.system(size: i % 3 == 0 ? 11 + CGFloat(rand(i * 29)) * 6 : 22, weight: .bold))
+                                .foregroundStyle(Color(red: 1.0, green: 0.88, blue: 0.54).opacity(twinkle * 0.8))
+                                .position(x: CGFloat(rand(i * 31)) * geo.size.width,
+                                          y: CGFloat(rand(i * 37)) * geo.size.height * 0.9)
+                        }
                     }
                 }
             }

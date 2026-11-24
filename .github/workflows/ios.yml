@@ -96,6 +96,16 @@ jobs:
             sleep 5
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          # v0.9 night theme + big text first
+          shot n1-home     -demo sample -night
+          shot n2-drop     -demo sample -open 0 -night
+          shot n3-levels   -demo sample -open 3 -history -night
+          shot n4-add      -demo sample -add -night
+          shot n5-settings -demo sample -settings -night
+          shot n6-menu     -demo sample -menu 1 -night
+          shot n7-paused   -demo sample -open 5 -night
+          shot a1-bigtext  -demo sample -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
+          shot a2-bigtext-drop -demo sample -open 0 -UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityL
           shot 22-menu     -demo sample -menu 1
           shot 23-more     -demo sample -open 0 -more
           shot 20-share    -demo sample -share
@@ -105,19 +115,13 @@ jobs:
           shot 12-settings -demo sample -settings
           shot 17-onboarding -demo empty -onboarding
           shot 18-recap    -demo sample -recap
-          shot 19-toast    -demo sample -toast
           shot 1-empty     -demo empty
           shot 2-home      -demo sample
           shot 3-drop      -demo sample -open 0
-          shot 4-flame-done -demo sample -open 1 -celebrate
-          shot 5-sprout    -demo sample -open 2
-          shot 6-sun       -demo sample -open 3
-          shot 7-apple     -demo sample -open 4
           shot 8-add       -demo sample -add
           shot 13-edit-habit -demo sample -editHabit 0
           shot 14-levels   -demo sample -open 3 -history
           shot 15-levelup  -demo sample -open 0 -levelup
-          shot 16-read-levels -demo sample -open 2 -history
 
           # short video of the logging animation (app auto-logs in -autolog mode)
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true

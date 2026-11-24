@@ -48,12 +48,12 @@ struct HomeView: View {
                                 HStack(spacing: 8) {
                                     Text("💡 Tip: press and hold a habit for more options")
                                         .font(.cartoon(13, .bold))
-                                        .foregroundStyle(Ink.color.opacity(0.7))
+                                        .foregroundStyle(Ink.text.opacity(0.7))
                                     Spacer()
                                     Button { withAnimation(.spring) { tipSeen = true } } label: {
                                         Image(systemName: "xmark")
                                             .font(.system(size: 11, weight: .black))
-                                            .foregroundStyle(Ink.color.opacity(0.5))
+                                            .foregroundStyle(Ink.text.opacity(0.5))
                                     }
                                     .accessibilityLabel("Dismiss tip")
                                 }
@@ -66,7 +66,7 @@ struct HomeView: View {
                             if editing {
                                 Text("Drag to reorder · tap ✕ to delete")
                                     .font(.cartoon(14, .bold))
-                                    .foregroundStyle(Ink.color.opacity(0.55))
+                                    .foregroundStyle(Ink.text.opacity(0.55))
                                     .transition(.opacity)
                             }
                             ForEach(active) { habit in
@@ -224,11 +224,11 @@ struct HomeView: View {
                 HStack {
                     Text("😴 Paused (\(paused.count))")
                         .font(.cartoon(16))
-                        .foregroundStyle(Ink.color.opacity(0.6))
+                        .foregroundStyle(Ink.text.opacity(0.6))
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.system(size: 13, weight: .black))
-                        .foregroundStyle(Ink.color.opacity(0.4))
+                        .foregroundStyle(Ink.text.opacity(0.4))
                         .rotationEffect(.degrees(showPaused ? 180 : 0))
                 }
             }
@@ -243,10 +243,10 @@ struct HomeView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(habit.name)
                                 .font(.cartoon(17))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                             Text("Paused · streak kept at \(habit.streak)")
                                 .font(.cartoon(12, .semibold))
-                                .foregroundStyle(Ink.color.opacity(0.5))
+                                .foregroundStyle(Ink.text.opacity(0.5))
                         }
                         Spacer()
                         Button {
@@ -281,14 +281,14 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)).uppercased())
                     .font(.cartoon(13, .bold))
-                    .foregroundStyle(Ink.color.opacity(0.5))
+                    .foregroundStyle(Ink.text.opacity(0.5))
                 Text("Today")
                     .font(.cartoon(40))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                 if !store.habits.isEmpty {
                     Text("\(doneCount) of \(todays.count) done today")
                         .font(.cartoon(16, .bold))
-                        .foregroundStyle(Ink.color.opacity(0.6))
+                        .foregroundStyle(Ink.text.opacity(0.6))
                         .contentTransition(.numericText())
                         .animation(.spring, value: doneCount)
                 }
@@ -311,9 +311,9 @@ struct HomeView: View {
                 .transition(.scale.combined(with: .opacity))
             } else {
                 HStack(spacing: 12) {
-                    circleButton("gearshape.fill", fill: .white, size: 46) { showingSettings = true }
+                    circleButton("gearshape.fill", fill: Card.color, size: 46) { showingSettings = true }
                         .accessibilityLabel("Settings")
-                    circleButton("plus", fill: HabitColor.sunny.main, size: 56) { showingAdd = true }
+                    circleButton("plus", fill: HabitColor.sunny.main, ink: Ink.color, size: 56) { showingAdd = true }
                         .accessibilityLabel("Add habit")
                 }
                 .transition(.scale.combined(with: .opacity))
@@ -322,11 +322,11 @@ struct HomeView: View {
         .padding(.top, 8)
     }
 
-    private func circleButton(_ symbol: String, fill: Color, size: CGFloat, action: @escaping () -> Void) -> some View {
+    private func circleButton(_ symbol: String, fill: Color, ink: Color = Ink.text, size: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size * 0.42, weight: .black))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(ink)
                 .frame(width: size, height: size)
                 .background(Circle().fill(fill))
                 .overlay(Circle().stroke(Ink.color, lineWidth: 3))
@@ -422,19 +422,19 @@ struct HabitCard: View {
                     HStack(spacing: 6) {
                         Text(habit.name)
                             .font(.cartoon(19))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                             .lineLimit(1)
                         if !habit.isScheduled() {
                             Text("Rest day 😴")
                                 .font(.cartoon(11, .bold))
-                                .foregroundStyle(Ink.color.opacity(0.6))
+                                .foregroundStyle(Ink.text.opacity(0.6))
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
                                 .background(Capsule().fill(Ink.color.opacity(0.08)))
                         } else if let time = habit.reminderText {
                             Label(time, systemImage: "bell.fill")
                                 .font(.cartoon(11, .bold))
-                                .foregroundStyle(habit.color.deep)
+                                .foregroundStyle(habit.color.tone)
                                 .labelStyle(.titleAndIcon)
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
@@ -443,7 +443,7 @@ struct HabitCard: View {
                     }
                     Text("\(habit.amount().clean) / \(habit.goal.clean) \(habit.unit)")
                         .font(.cartoon(14, .semibold))
-                        .foregroundStyle(Ink.color.opacity(0.6))
+                        .foregroundStyle(Ink.text.opacity(0.6))
                         .contentTransition(.numericText())
                     ProgressPill(progress: habit.progress(), color: habit.color, height: 12)
                 }
@@ -469,15 +469,16 @@ struct HabitCard: View {
             } label: {
                 Image(systemName: habit.isDone() ? "checkmark" : "plus")
                     .font(.system(size: 20, weight: .black))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(habit.isDone() ? HabitColor.doneInk : .white)
                     .frame(width: 46, height: 46)
-                    .background(Circle().fill(habit.isDone() ? habit.color.deep : habit.color.main))
+                    .background(Circle().fill(habit.isDone() ? habit.color.doneFill : habit.color.main))
                     .overlay(Circle().stroke(Ink.color, lineWidth: 3))
             }
             .buttonStyle(BouncyButtonStyle())
             .opacity(editing ? 0.25 : 1)
             .disabled(editing)
-            .accessibilityLabel("Log \(habit.step.clean) \(habit.unitLabel(for: habit.step))")
+            .accessibilityLabel("Log \(habit.step.clean) \(habit.unitLabel(for: habit.step)) for \(habit.name)")
+            .accessibilityValue("\(habit.amount().clean) of \(habit.goal.clean) \(habit.unit)\(habit.isDone() ? ", done" : "")")
         }
         .padding(14)
         .cartoonCard()
@@ -528,10 +529,10 @@ struct EmptyStateView: View {
             BlobMascot(progress: 0.35, color: .ocean, kind: .drop, size: 170)
             Text("No habits yet")
                 .font(.cartoon(26))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
             Text("Add your first one — like drinking 2 L of water a day — and watch your buddy fill up.")
                 .font(.cartoon(16, .medium))
-                .foregroundStyle(Ink.color.opacity(0.6))
+                .foregroundStyle(Ink.text.opacity(0.6))
                 .multilineTextAlignment(.center)
             Button(action: onAdd) {
                 Text("Add a habit")

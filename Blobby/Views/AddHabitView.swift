@@ -91,7 +91,7 @@ struct AddHabitView: View {
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(34)
         .presentationBackground(Paper.color)
-        .preferredColorScheme(.light)
+        .appAppearance()
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -106,14 +106,14 @@ struct AddHabitView: View {
         HStack {
             Text(existing == nil ? "New habit" : "Edit habit")
                 .font(.cartoon(30))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
             Spacer()
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .black))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .frame(width: 42, height: 42)
-                    .background(Circle().fill(Color.white))
+                    .background(Circle().fill(Card.color))
                     .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
             }
             .buttonStyle(BouncyButtonStyle())
@@ -128,14 +128,14 @@ struct AddHabitView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(name.isEmpty ? "Your habit" : name)
                     .font(.cartoon(20))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .lineLimit(2)
                 Text("\(goal.clean) \(unit) a day")
                     .font(.cartoon(15, .bold))
-                    .foregroundStyle(Ink.color.opacity(0.65))
+                    .foregroundStyle(Ink.text.opacity(0.65))
                 Text("\(kind.title) \(kind.hint)")
                     .font(.cartoon(13, .semibold))
-                    .foregroundStyle(color.deep)
+                    .foregroundStyle(color.tone)
             }
             Spacer(minLength: 0)
         }
@@ -150,7 +150,7 @@ struct AddHabitView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.cartoon(17))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
             content()
         }
     }
@@ -163,11 +163,11 @@ struct AddHabitView: View {
                     Button { apply(preset) } label: {
                         Text("\(preset.emoji) \(preset.name)")
                             .font(.cartoon(15, .bold))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
                     }
-                    .cartoonCard(radius: 16, fill: selected ? preset.color.light : .white)
+                    .cartoonCard(radius: 16, fill: selected ? preset.color.light : Card.color)
                     .buttonStyle(BouncyButtonStyle())
                 }
             }
@@ -195,11 +195,11 @@ struct AddHabitView: View {
                                 .allowsHitTesting(false)
                             Text(k.title)
                                 .font(.cartoon(13, .bold))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                         }
                         .frame(width: 86, height: 100)
                     }
-                    .cartoonCard(radius: 20, fill: selected ? color.light : .white)
+                    .cartoonCard(radius: 20, fill: selected ? color.light : Card.color)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .stroke(color.deep, lineWidth: selected ? 3 : 0)
@@ -219,7 +219,7 @@ struct AddHabitView: View {
     private var nameField: some View {
         TextField("e.g. Drink water", text: $name)
             .font(.cartoon(19, .bold))
-            .foregroundStyle(Ink.color)
+            .foregroundStyle(Ink.text)
             .focused($focused)
             .submitLabel(.done)
             .padding(.horizontal, 16)
@@ -243,7 +243,7 @@ struct AddHabitView: View {
                         .frame(height: 40)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(selected ? color.light : Color.white)
+                                .fill(selected ? color.light : Card.color)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -261,7 +261,7 @@ struct AddHabitView: View {
     private var unitField: some View {
         TextField("unit", text: $unit)
             .font(.cartoon(15, .bold))
-            .foregroundStyle(Ink.color)
+            .foregroundStyle(Ink.text)
             .multilineTextAlignment(.center)
             .focused($focused)
             .frame(width: 74, height: 34)
@@ -272,7 +272,7 @@ struct AddHabitView: View {
     private var unitLabel: some View {
         Text(unit.isEmpty ? "—" : unit)
             .font(.cartoon(15, .bold))
-            .foregroundStyle(Ink.color.opacity(0.55))
+            .foregroundStyle(Ink.text.opacity(0.55))
             .frame(width: 74, height: 34)
     }
 
@@ -284,7 +284,7 @@ struct AddHabitView: View {
             }
             TextField("0", value: value, format: .number)
                 .font(.cartoon(26))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .multilineTextAlignment(.center)
                 .keyboardType(.decimalPad)
                 .focused($focused)
@@ -305,7 +305,7 @@ struct AddHabitView: View {
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 18, weight: .black))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(color.light))
                 .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
@@ -378,9 +378,9 @@ struct AddHabitView: View {
                     } label: {
                         Text(letters[day - 1])
                             .font(.cartoon(15))
-                            .foregroundStyle(on ? .white : Ink.color.opacity(0.5))
+                            .foregroundStyle(on ? .white : Ink.text.opacity(0.5))
                             .frame(width: 38, height: 38)
-                            .background(Circle().fill(on ? color.main : Color.white))
+                            .background(Circle().fill(on ? color.main : Card.color))
                             .overlay(Circle().stroke(on ? Ink.color : Ink.color.opacity(0.25), lineWidth: 2.5))
                             .scaleEffect(on ? 1.05 : 1)
                     }
@@ -396,7 +396,7 @@ struct AddHabitView: View {
             Text(repeatDays.isEmpty ? "Pick at least one day."
                  : "Days off are rest days: they don't break your streak.")
                 .font(.cartoon(12, .semibold))
-                .foregroundStyle(repeatDays.isEmpty ? HabitColor.coral.deep : Ink.color.opacity(0.5))
+                .foregroundStyle(repeatDays.isEmpty ? HabitColor.coral.tone : Ink.text.opacity(0.5))
         }
         .padding(14)
         .cartoonCard(radius: 22)
@@ -409,11 +409,11 @@ struct AddHabitView: View {
         } label: {
             Text(title)
                 .font(.cartoon(13, .bold))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(selected ? color.light : Color.white))
+                    .fill(selected ? color.light : Card.color))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(selected ? Ink.color : Ink.color.opacity(0.2), lineWidth: selected ? 2.5 : 1.5))
         }
@@ -432,11 +432,11 @@ struct AddHabitView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(paused ? "Resume this habit" : "Pause this habit")
                         .font(.cartoon(17))
-                        .foregroundStyle(Ink.color)
+                        .foregroundStyle(Ink.text)
                     Text(paused ? "Back to Today, reminders on again"
                                 : "Hide it from Today and stop reminders. Your streak is kept.")
                         .font(.cartoon(12, .semibold))
-                        .foregroundStyle(Ink.color.opacity(0.55))
+                        .foregroundStyle(Ink.text.opacity(0.55))
                         .multilineTextAlignment(.leading)
                 }
                 Spacer()
@@ -454,11 +454,11 @@ struct AddHabitView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Daily reminder")
                         .font(.cartoon(17))
-                        .foregroundStyle(Ink.color)
+                        .foregroundStyle(Ink.text)
                     Text(remind ? "\(kind.title) will nudge you at \(reminderTime.formatted(date: .omitted, time: .shortened))"
                                 : "Off — no nudges")
                         .font(.cartoon(13, .medium))
-                        .foregroundStyle(Ink.color.opacity(0.55))
+                        .foregroundStyle(Ink.text.opacity(0.55))
                 }
                 Spacer()
                 CartoonToggle(isOn: $remind, color: color)
@@ -479,21 +479,21 @@ struct AddHabitView: View {
                     .clipped()
                 Text("Skipped automatically on days you've already finished.")
                     .font(.cartoon(12, .semibold))
-                    .foregroundStyle(Ink.color.opacity(0.5))
+                    .foregroundStyle(Ink.text.opacity(0.5))
             }
 
             if remind && notifDenied {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Notifications are turned off for Blobby, so reminders can't show.")
                         .font(.cartoon(13, .bold))
-                        .foregroundStyle(HabitColor.coral.deep)
+                        .foregroundStyle(HabitColor.coral.tone)
                     Button("Open iPhone Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(url)
                         }
                     }
                     .font(.cartoon(14, .bold))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                 }
             }
         }
@@ -521,11 +521,11 @@ struct AddHabitView: View {
         } label: {
             Text("\(icon) \(String(format: "%02d:%02d", hour, minute))")
                 .font(.cartoon(13, .bold))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(selected ? color.light : Color.white))
+                    .fill(selected ? color.light : Card.color))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(selected ? Ink.color : Ink.color.opacity(0.2), lineWidth: selected ? 2.5 : 1.5))
         }
@@ -595,7 +595,7 @@ struct CartoonToggle: View {
         } label: {
             ZStack(alignment: isOn ? .trailing : .leading) {
                 Capsule()
-                    .fill(isOn ? color.main : Color.white)
+                    .fill(isOn ? color.main : Card.color)
                 Capsule()
                     .stroke(Ink.color, lineWidth: 2.5)
                 Circle()

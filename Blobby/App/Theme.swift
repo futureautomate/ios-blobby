@@ -1,17 +1,38 @@
 import SwiftUI
 
-/// The dark "ink" used for cartoon outlines and text.
-enum Ink {
-    static let color = Color(red: 0.13, green: 0.13, blue: 0.20)
+extension Color {
+    /// A colour that switches between the day (light) and night (dark) theme.
+    init(day: UIColor, night: UIColor) {
+        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? night : day })
+    }
 }
 
-/// Warm paper background for the whole app.
+private func rgb(_ hex: UInt32) -> UIColor {
+    UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+}
+
+/// The dark "ink" used for cartoon outlines and hard shadows.
+/// Stays dark at night too (darker than the cards) so the sticker look survives.
+enum Ink {
+    static let color = Color(day: rgb(0x212133), night: rgb(0x0C0A1A))
+    /// Text and icons on cards/background: ink by day, warm moon-cream at night.
+    static let text = Color(day: rgb(0x212133), night: rgb(0xFFF3DC))
+}
+
+/// Background for the whole app: warm paper by day, deep indigo sky at night.
 enum Paper {
-    static let color = Color(red: 1.0, green: 0.98, blue: 0.94)
+    static let color = Color(day: rgb(0xFFFAF0), night: rgb(0x1B1733))
+}
+
+/// Card / button surface: white by day, lifted plum at night.
+enum Card {
+    static let color = Color(day: .white, night: rgb(0x2B2550))
 }
 
 /// Each habit picks one of these palettes. `main` = body/liquid, `deep` = liquid bottom,
-/// `light` = empty blob + background tint.
+/// `light` = tint for backgrounds and tracks (deep tint at night),
+/// `pastel` = the character's own light colour (same day and night, so characters never change).
 enum HabitColor: Int, Codable, CaseIterable, Identifiable, Hashable {
     case ocean, mint, sunny, coral, grape
 
@@ -19,38 +40,100 @@ enum HabitColor: Int, Codable, CaseIterable, Identifiable, Hashable {
 
     var main: Color {
         switch self {
-        case .ocean: return Color(red: 0.25, green: 0.58, blue: 0.98)
-        case .mint:  return Color(red: 0.22, green: 0.80, blue: 0.62)
-        case .sunny: return Color(red: 1.00, green: 0.76, blue: 0.20)
-        case .coral: return Color(red: 1.00, green: 0.46, blue: 0.42)
-        case .grape: return Color(red: 0.62, green: 0.46, blue: 0.96)
+        case .ocean: return Color(day: rgb(0x4094FA), night: rgb(0x5AAEFF))
+        case .mint:  return Color(day: rgb(0x38CC9E), night: rgb(0x45DDA9))
+        case .sunny: return Color(day: rgb(0xFFC233), night: rgb(0xFFD34D))
+        case .coral: return Color(day: rgb(0xFF756B), night: rgb(0xFF8585))
+        case .grape: return Color(day: rgb(0x9E75F5), night: rgb(0xB49BFF))
         }
     }
 
     var deep: Color {
         switch self {
-        case .ocean: return Color(red: 0.10, green: 0.32, blue: 0.70)
-        case .mint:  return Color(red: 0.05, green: 0.50, blue: 0.38)
-        case .sunny: return Color(red: 0.85, green: 0.50, blue: 0.02)
-        case .coral: return Color(red: 0.76, green: 0.20, blue: 0.22)
-        case .grape: return Color(red: 0.38, green: 0.22, blue: 0.72)
+        case .ocean: return Color(rgb(0x1A52B3))
+        case .mint:  return Color(rgb(0x0D8061))
+        case .sunny: return Color(rgb(0xD98005))
+        case .coral: return Color(rgb(0xC23338))
+        case .grape: return Color(rgb(0x6138B8))
         }
     }
 
+    /// Coloured text: deep shade by day, bright shade at night (readable on dark cards).
+    var tone: Color {
+        Color(UIColor { trait in
+            switch self {
+            case .ocean: return trait.userInterfaceStyle == .dark ? rgb(0x8CC8FF) : rgb(0x1A52B3)
+            case .mint:  return trait.userInterfaceStyle == .dark ? rgb(0x6FE8BE) : rgb(0x0D8061)
+            case .sunny: return trait.userInterfaceStyle == .dark ? rgb(0xFFD34D) : rgb(0xD98005)
+            case .coral: return trait.userInterfaceStyle == .dark ? rgb(0xFF9C9C) : rgb(0xC23338)
+            case .grape: return trait.userInterfaceStyle == .dark ? rgb(0xC9B6FF) : rgb(0x6138B8)
+            }
+        })
+    }
+
+    /// Fill for a finished habit's tick: deep shade by day, glowing yellow at night.
+    var doneFill: Color {
+        Color(UIColor { $0.userInterfaceStyle == .dark ? rgb(0xFFD34D) : UIColor(self.deep) })
+    }
+    /// Tick colour on top of `doneFill`.
+    static let doneInk = Color(day: .white, night: rgb(0x0C0A1A))
+
+    var pastelUI: UIColor {
+        switch self {
+        case .ocean: return rgb(0xE0F0FF)
+        case .mint:  return rgb(0xDEFAED)
+        case .sunny: return rgb(0xFFF5D6)
+        case .coral: return rgb(0xFFE8E6)
+        case .grape: return rgb(0xF0E8FF)
+        }
+    }
+
+    var pastel: Color { Color(pastelUI) }
+
     var light: Color {
         switch self {
-        case .ocean: return Color(red: 0.88, green: 0.94, blue: 1.00)
-        case .mint:  return Color(red: 0.87, green: 0.98, blue: 0.93)
-        case .sunny: return Color(red: 1.00, green: 0.96, blue: 0.84)
-        case .coral: return Color(red: 1.00, green: 0.91, blue: 0.90)
-        case .grape: return Color(red: 0.94, green: 0.91, blue: 1.00)
+        case .ocean: return Color(day: pastelUI, night: rgb(0x1E2F55))
+        case .mint:  return Color(day: pastelUI, night: rgb(0x173F3A))
+        case .sunny: return Color(day: pastelUI, night: rgb(0x43391C))
+        case .coral: return Color(day: pastelUI, night: rgb(0x4A2440))
+        case .grape: return Color(day: pastelUI, night: rgb(0x352A63))
         }
     }
 }
 
+/// Applies the Light / Night / Auto choice (root view and every sheet).
+struct AppAppearance: ViewModifier {
+    @AppStorage(Appearance.key) private var appearance = Appearance.auto.rawValue
+
+    func body(content: Content) -> some View {
+        content.preferredColorScheme(LaunchOptions.night ? .dark : (Appearance(rawValue: appearance) ?? .auto).scheme)
+    }
+}
+
+extension View {
+    func appAppearance() -> some View { modifier(AppAppearance()) }
+}
+
+/// App appearance chosen in Settings.
+enum Appearance: Int, CaseIterable, Identifiable {
+    case auto, day, night
+    var id: Int { rawValue }
+    static let key = "appearance"
+    var title: String { ["Auto", "Light", "Night"][rawValue] }
+    var emoji: String { ["📱", "☀️", "🌙"][rawValue] }
+    var scheme: ColorScheme? { [nil, .light, .dark][rawValue] }
+}
+
 extension Font {
     /// Chunky rounded font for the cartoon look.
+    /// Scales with the user's text size setting (capped so cards don't break).
     static func cartoon(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
+        let scaled = min(UIFontMetrics.default.scaledValue(for: size), size * 1.4)
+        return .system(size: scaled, weight: weight, design: .rounded)
+    }
+
+    /// Fixed size — for share images, which have a fixed canvas.
+    static func cartoonFixed(_ size: CGFloat, _ weight: Font.Weight = .heavy) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }
 }
@@ -68,7 +151,7 @@ extension Double {
 /// White card with a thick ink outline and a hard drop shadow (sticker look).
 struct CartoonCard: ViewModifier {
     var radius: CGFloat = 26
-    var fill: Color = .white
+    var fill: Color = Card.color
 
     func body(content: Content) -> some View {
         content
@@ -89,7 +172,7 @@ struct CartoonCard: ViewModifier {
 }
 
 extension View {
-    func cartoonCard(radius: CGFloat = 26, fill: Color = .white) -> some View {
+    func cartoonCard(radius: CGFloat = 26, fill: Color = Card.color) -> some View {
         modifier(CartoonCard(radius: radius, fill: fill))
     }
 }

@@ -91,18 +91,18 @@ struct WeeklyRecapView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Your week")
                                 .font(.cartoon(30))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                             Text("\(startDay.formatted(.dateTime.day().month())) – \(endDay.formatted(.dateTime.day().month()))")
                                 .font(.cartoon(14, .bold))
-                                .foregroundStyle(Ink.color.opacity(0.5))
+                                .foregroundStyle(Ink.text.opacity(0.5))
                         }
                         Spacer()
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")
                                 .font(.system(size: 16, weight: .black))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                                 .frame(width: 42, height: 42)
-                                .background(Circle().fill(Color.white))
+                                .background(Circle().fill(Card.color))
                                 .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
                         }
                         .buttonStyle(BouncyButtonStyle())
@@ -115,14 +115,14 @@ struct WeeklyRecapView: View {
                                        celebrate: true, sticker: star.emoji, accessories: star.unlocked)
                             Text("Star of the week: \(star.name)")
                                 .font(.cartoon(18))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                         }
                         Text("You hit \(totalDone) of \(totalScheduled) goals")
                             .font(.cartoon(24))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                         Text(headline)
                             .font(.cartoon(15, .semibold))
-                            .foregroundStyle(Ink.color.opacity(0.6))
+                            .foregroundStyle(Ink.text.opacity(0.6))
                             .multilineTextAlignment(.center)
                     }
                     .padding(18)
@@ -144,7 +144,7 @@ struct WeeklyRecapView: View {
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(34)
         .presentationBackground(Paper.color)
-        .preferredColorScheme(.light)
+        .appAppearance()
         .onAppear { WeeklyRecap.markShown() }
     }
 
@@ -168,7 +168,7 @@ struct WeeklyRecapView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(h.name)
                     .font(.cartoon(17))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                 HStack(spacing: 5) {
                     ForEach(0..<7, id: \.self) { i in
                         dayDot(h, offset: 6 - i)
@@ -176,7 +176,7 @@ struct WeeklyRecapView: View {
                 }
                 Text(scheduled == 0 ? "No days scheduled" : "\(done) of \(scheduled) days")
                     .font(.cartoon(12, .bold))
-                    .foregroundStyle(Ink.color.opacity(0.55))
+                    .foregroundStyle(Ink.text.opacity(0.55))
             }
             Spacer()
             Text(badge).font(.system(size: 30))
@@ -246,7 +246,7 @@ struct OnboardingView: View {
                     Spacer()
                     Button("Skip") { finish() }
                         .font(.cartoon(16, .bold))
-                        .foregroundStyle(Ink.color.opacity(0.5))
+                        .foregroundStyle(Ink.text.opacity(0.5))
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
@@ -284,7 +284,7 @@ struct OnboardingView: View {
                 .padding(.bottom, 20)
             }
         }
-        .preferredColorScheme(.light)
+        .appAppearance()
     }
 
     private var welcome: some View {
@@ -297,11 +297,11 @@ struct OnboardingView: View {
             }
             Text("Hi, we're your habit buddies!")
                 .font(.cartoon(28))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
                 .multilineTextAlignment(.center)
             Text("Every habit gets its own little character. Log your progress and watch it fill up, grow, and level up with your streaks.")
                 .font(.cartoon(17, .medium))
-                .foregroundStyle(Ink.color.opacity(0.6))
+                .foregroundStyle(Ink.text.opacity(0.6))
                 .multilineTextAlignment(.center)
             Spacer()
         }
@@ -318,10 +318,10 @@ struct OnboardingView: View {
             }
             Text("Pick your first habit")
                 .font(.cartoon(26))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
             Text("You can add more and change everything later.")
                 .font(.cartoon(15, .medium))
-                .foregroundStyle(Ink.color.opacity(0.55))
+                .foregroundStyle(Ink.text.opacity(0.55))
             VStack(spacing: 10) {
                 ForEach(HabitPreset.all) { preset in
                     let selected = picked?.name == preset.name
@@ -338,11 +338,11 @@ struct OnboardingView: View {
                                 .font(.cartoon(13, .bold))
                                 .opacity(0.6)
                         }
-                        .foregroundStyle(Ink.color)
+                        .foregroundStyle(Ink.text)
                         .padding(.horizontal, 16)
                         .frame(height: 50)
                     }
-                    .cartoonCard(radius: 16, fill: selected ? preset.color.light : .white)
+                    .cartoonCard(radius: 16, fill: selected ? preset.color.light : Card.color)
                     .scaleEffect(selected ? 1.02 : 1)
                     .buttonStyle(BouncyButtonStyle())
                 }
@@ -360,15 +360,15 @@ struct OnboardingView: View {
             }
             Text("Want a daily nudge?")
                 .font(.cartoon(26))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
             Text("\(picked?.kind.title ?? "Your buddy") can remind you every evening at 18:00. It stays quiet on days you've already finished.")
                 .font(.cartoon(16, .medium))
-                .foregroundStyle(Ink.color.opacity(0.6))
+                .foregroundStyle(Ink.text.opacity(0.6))
                 .multilineTextAlignment(.center)
             HStack {
                 Text("🔔 Remind me")
                     .font(.cartoon(18))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                 Spacer()
                 CartoonToggle(isOn: $remind, color: picked?.color ?? .ocean)
             }

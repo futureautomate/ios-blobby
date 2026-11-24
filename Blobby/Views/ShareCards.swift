@@ -29,8 +29,8 @@ private struct CardFrame<Content: View>: View {
                 HStack(spacing: 6) {
                     BlobMascot(progress: 0.6, color: .ocean, kind: .drop, size: 22, animated: false)
                     Text("Made with Blobby")
-                        .font(.cartoon(12, .bold))
-                        .foregroundStyle(Ink.color.opacity(0.5))
+                        .font(.cartoonFixed(12, .bold))
+                        .foregroundStyle(Ink.text.opacity(0.5))
                 }
                 .padding(.bottom, 14)
             }
@@ -43,6 +43,7 @@ private struct CardFrame<Content: View>: View {
         }
         .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .environment(\.colorScheme, .light)   // share images always use the day look
     }
 }
 
@@ -70,11 +71,11 @@ struct WeekShareCard: View {
             VStack(spacing: 10) {
                 VStack(spacing: 2) {
                     Text("My week")
-                        .font(.cartoon(28))
-                        .foregroundStyle(Ink.color)
+                        .font(.cartoonFixed(28))
+                        .foregroundStyle(Ink.text)
                     Text("\(start.formatted(.dateTime.day().month())) – \(endDay.formatted(.dateTime.day().month()))")
-                        .font(.cartoon(12, .bold))
-                        .foregroundStyle(Ink.color.opacity(0.5))
+                        .font(.cartoonFixed(12, .bold))
+                        .foregroundStyle(Ink.text.opacity(0.5))
                 }
                 HStack(spacing: 14) {
                     if let star = star {
@@ -83,11 +84,11 @@ struct WeekShareCard: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(done)/\(total)")
-                            .font(.cartoon(40))
-                            .foregroundStyle(Ink.color)
+                            .font(.cartoonFixed(40))
+                            .foregroundStyle(Ink.text)
                         Text("goals hit")
-                            .font(.cartoon(15, .bold))
-                            .foregroundStyle(Ink.color.opacity(0.6))
+                            .font(.cartoonFixed(15, .bold))
+                            .foregroundStyle(Ink.text.opacity(0.6))
                     }
                 }
                 VStack(spacing: 6) {
@@ -96,7 +97,7 @@ struct WeekShareCard: View {
                     }
                 }
                 .padding(10)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white))
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Card.color))
                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Ink.color, lineWidth: 2.5))
             }
         }
@@ -107,8 +108,8 @@ struct WeekShareCard: View {
             BlobMascot(progress: scheduled > 0 ? Double(done) / Double(scheduled) : 0, color: h.color,
                        kind: h.kind, size: 28, animated: false)
             Text(h.name)
-                .font(.cartoon(13, .bold))
-                .foregroundStyle(Ink.color)
+                .font(.cartoonFixed(13, .bold))
+                .foregroundStyle(Ink.text)
                 .lineLimit(1)
             Spacer(minLength: 4)
             HStack(spacing: 3) {
@@ -132,8 +133,8 @@ struct HabitShareCard: View {
         CardFrame(tint: habit.color) {
             VStack(spacing: 10) {
                 Text(habit.name)
-                    .font(.cartoon(28))
-                    .foregroundStyle(Ink.color)
+                    .font(.cartoonFixed(28))
+                    .foregroundStyle(Ink.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 BlobMascot(progress: max(habit.progress(), 0.6), color: habit.color, kind: habit.kind, size: 150,
@@ -153,14 +154,14 @@ struct HabitShareCard: View {
                                 .overlay(Circle().stroke(Ink.color.opacity(habit.isScheduled(on: day) ? 0.7 : 0.2), lineWidth: 2))
                                 .frame(width: 26, height: 26)
                             Text(day.formatted(.dateTime.weekday(.narrow)))
-                                .font(.cartoon(10, .bold))
-                                .foregroundStyle(Ink.color.opacity(0.5))
+                                .font(.cartoonFixed(10, .bold))
+                                .foregroundStyle(Ink.text.opacity(0.5))
                         }
                     }
                 }
                 .padding(.top, 4)
                 Text("\(habit.formatTotal(habit.totalLogged)) logged so far")
-                    .font(.cartoon(13, .bold))
+                    .font(.cartoonFixed(13, .bold))
                     .foregroundStyle(habit.color.deep)
             }
         }
@@ -168,8 +169,8 @@ struct HabitShareCard: View {
 
     private func pill(_ text: String, fill: Color) -> some View {
         Text(text)
-            .font(.cartoon(13, .bold))
-            .foregroundStyle(Ink.color)
+            .font(.cartoonFixed(13, .bold))
+            .foregroundStyle(Ink.text)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(Capsule().fill(fill))
@@ -180,9 +181,9 @@ struct HabitShareCard: View {
 // MARK: - Share button
 
 /// Renders `card` to a 1080×1350 image and offers it through the share sheet.
-struct ShareCardButton<Card: View>: View {
+struct ShareCardButton<CardView: View>: View {
     let title: String
-    let card: Card
+    let card: CardView
     var compact = false
 
     @State private var image: UIImage?
@@ -208,9 +209,9 @@ struct ShareCardButton<Card: View>: View {
             if compact {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 16, weight: .black))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color.white))
+                    .background(Circle().fill(Card.color))
                     .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
                     .background(Circle().fill(Ink.color).offset(y: 3))
             } else {
@@ -247,6 +248,6 @@ struct ShareCardPreview: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(red: 0.86, green: 0.90, blue: 0.97))
+        .background(Paper.color)
     }
 }

@@ -42,13 +42,13 @@ struct HabitDetailView: View {
                         HStack(spacing: 10) {
                             Text("😴 Paused: no reminders, streak kept")
                                 .font(.cartoon(14, .bold))
-                                .foregroundStyle(Ink.color.opacity(0.7))
+                                .foregroundStyle(Ink.text.opacity(0.7))
                             Spacer()
                             Button("Resume") {
                                 withAnimation(.spring) { store.setPaused(habitID, false) }
                             }
                             .font(.cartoon(14))
-                            .foregroundStyle(habit.color.deep)
+                            .foregroundStyle(habit.color.tone)
                         }
                         .padding(12)
                         .cartoonCard(radius: 16, fill: Paper.color)
@@ -57,19 +57,19 @@ struct HabitDetailView: View {
                     VStack(spacing: 6) {
                         Text(habit.name)
                             .font(.cartoon(30))
-                            .foregroundStyle(Ink.color)
+                            .foregroundStyle(Ink.text)
                             .multilineTextAlignment(.center)
                         HStack(spacing: 8) {
                             Text(habit.streak > 0 ? "🔥 \(habit.streak) day streak" : "Start your streak today")
                                 .font(.cartoon(15, .bold))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 6)
                                 .cartoonCard(radius: 14, fill: HabitColor.sunny.light)
                             if let time = habit.reminderText {
                                 Label(time, systemImage: "bell.fill")
                                     .font(.cartoon(15, .bold))
-                                    .foregroundStyle(Ink.color)
+                                    .foregroundStyle(Ink.text)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .cartoonCard(radius: 14, fill: habit.color.light)
@@ -88,7 +88,7 @@ struct HabitDetailView: View {
                             FallingEmoji(emoji: habit.emoji) { land(id) }
                         }
                         ForEach(labels, id: \.self) { id in
-                            FloatingLabel(text: "+\(habit.step.clean) \(habit.unitLabel(for: habit.step))", color: habit.color.deep)
+                            FloatingLabel(text: "+\(habit.step.clean) \(habit.unitLabel(for: habit.step))", color: habit.color.tone)
                                 .onAppear {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) {
                                         labels.removeAll { $0 == id }
@@ -107,16 +107,16 @@ struct HabitDetailView: View {
                                 .contentTransition(.numericText())
                             Text("/ \(habit.goal.clean) \(habit.unit)")
                                 .font(.cartoon(18, .bold))
-                                .foregroundStyle(Ink.color.opacity(0.55))
+                                .foregroundStyle(Ink.text.opacity(0.55))
                         }
-                        .foregroundStyle(Ink.color)
+                        .foregroundStyle(Ink.text)
 
                         ProgressPill(progress: habit.progress(), color: habit.color, height: 16)
                             .padding(.horizontal, 30)
 
                         Text(habit.isDone() ? "Goal reached! \(habit.kind.title) is so happy 🎉" : "\((habit.goal - habit.amount()).clean) \(habit.unitLabel(for: habit.goal - habit.amount())) to go")
                             .font(.cartoon(16, .bold))
-                            .foregroundStyle(habit.isDone() ? habit.color.deep : Ink.color.opacity(0.6))
+                            .foregroundStyle(habit.isDone() ? habit.color.tone : Ink.text.opacity(0.6))
                             .contentTransition(.numericText())
                     }
 
@@ -130,9 +130,10 @@ struct HabitDetailView: View {
                         } label: {
                             Image(systemName: "minus")
                                 .font(.system(size: 22, weight: .black))
-                                .foregroundStyle(Ink.color)
+                                .foregroundStyle(Ink.text)
                                 .frame(width: 60, height: 60)
                         }
+                        .accessibilityLabel("Remove \(habit.step.clean) \(habit.unitLabel(for: habit.step))")
                         .cartoonCard(radius: 20)
                         .buttonStyle(BouncyButtonStyle())
                         .disabled(habit.amount() <= 0)
@@ -143,8 +144,10 @@ struct HabitDetailView: View {
                                 .font(.cartoon(20))
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 60)
+                                .frame(minHeight: 60)
+                                .padding(.horizontal, 6)
                         }
+                        .accessibilityValue("\(habit.amount().clean) of \(habit.goal.clean) \(habit.unit)")
                         .cartoonCard(radius: 20, fill: habit.color.main)
                         .buttonStyle(BouncyButtonStyle())
                     }
@@ -242,9 +245,9 @@ struct HabitDetailView: View {
             Button { dismiss() } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .black))
-                    .foregroundStyle(Ink.color)
+                    .foregroundStyle(Ink.text)
                     .frame(width: 44, height: 44)
-                    .background(Circle().fill(Color.white))
+                    .background(Circle().fill(Card.color))
                     .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
                     .background(Circle().fill(Ink.color).offset(y: 3))
             }
@@ -342,7 +345,7 @@ struct WeekStrip: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("This week")
                 .font(.cartoon(16))
-                .foregroundStyle(Ink.color)
+                .foregroundStyle(Ink.text)
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { i in
                     dayView(offset: i - 6)
@@ -363,7 +366,7 @@ struct WeekStrip: View {
             ZStack {
                 Circle().fill(done ? habit.color.main : (rest ? Paper.color : habit.color.light))
                 if rest {
-                    Text("z").font(.cartoon(13, .bold)).foregroundStyle(Ink.color.opacity(0.3))
+                    Text("z").font(.cartoon(13, .bold)).foregroundStyle(Ink.text.opacity(0.3))
                 }
                 Circle()
                     .trim(from: 0, to: CGFloat(p))
@@ -381,7 +384,7 @@ struct WeekStrip: View {
             .frame(width: 36, height: 36)
             Text(day.formatted(.dateTime.weekday(.narrow)))
                 .font(.cartoon(12, .bold))
-                .foregroundStyle(offset == 0 ? Ink.color : Ink.color.opacity(0.45))
+                .foregroundStyle(offset == 0 ? Ink.text : Ink.text.opacity(0.45))
         }
     }
 }
