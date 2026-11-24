@@ -3,7 +3,7 @@ name: iOS — screenshots + unsigned IPA
 on:
   push:
     branches: [main]
-    paths-ignore: ["research/**", "**/*.md", "docs/**"]
+    paths-ignore: ["research/**", "**/*.md", "docs/**", ".github/workflows/store-screenshots.yml"]
   workflow_dispatch:
 
 concurrency:
