@@ -21,7 +21,7 @@ struct CartoonConfirm: View {
                 .onTapGesture(perform: onCancel)
 
             VStack(spacing: 12) {
-                BlobMascot(progress: 0.6, color: color, kind: kind, size: 110, sticker: sticker, sad: true)
+                BlobMascot(progress: 0.6, color: color, kind: kind, size: 150, sticker: sticker, sad: true)
                     .allowsHitTesting(false)
                 Text(title)
                     .font(.cartoon(22))
@@ -110,7 +110,9 @@ struct SettingsView: View {
 
     private enum Pending { case reset, sample }
     @State private var pending: Pending?
-    @State private var showingWidgets = false
+    @State private var showingRecap = false
+    @State private var showSigning = false
+    @AppStorage(SoundFX.settingKey) private var soundOn = true
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
@@ -145,29 +147,44 @@ struct SettingsView: View {
                     subtitle: "Replace everything with 5 demo habits (for testing)") {
                     withAnimation(.spring) { pending = .sample }
                 }
-                row(emoji: "🧩", title: "Widget preview",
-                    subtitle: "See the small, medium and large Home-screen widgets") {
-                    showingWidgets = true
+                row(emoji: "📅", title: "Weekly recap",
+                    subtitle: "Your buddies' report card for the last 7 days") {
+                    showingRecap = true
                 }
 
-                Spacer()
+                HStack(spacing: 14) {
+                    Text("🔊").font(.system(size: 30))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Sound effects").font(.cartoon(18)).foregroundStyle(Ink.color)
+                        Text("Pops, chimes and fanfares (follows the silent switch)")
+                            .font(.cartoon(13, .medium)).foregroundStyle(Ink.color.opacity(0.55))
+                    }
+                    Spacer()
+                    CartoonToggle(isOn: $soundOn, color: .mint)
+                }
+                .padding(16)
+                .cartoonCard(radius: 22)
 
-                // Tells us whether the sideloaded build kept the App Group entitlement.
-                Label(HabitFile.isShared ? "Widget sync on: the widget can see your habits"
-                                         : "Widget sync off: the widget can't see your habits on this install",
-                      systemImage: HabitFile.isShared ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.cartoon(12, .bold))
-                    .foregroundStyle(HabitFile.isShared ? HabitColor.mint.deep : HabitColor.coral.deep)
-                    .frame(maxWidth: .infinity)
+                Spacer(minLength: 10)
 
-                // Signing diagnostics: long-press to copy and send to the developer.
-                Text(ProvisioningInfo.report)
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Ink.color.opacity(0.55))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.7)))
+                // Signing details (useful when debugging sideloaded builds). Tap to expand.
+                Button { withAnimation(.spring) { showSigning.toggle() } } label: {
+                    Label(showSigning ? "Hide signing info" : "Signing info",
+                          systemImage: showSigning ? "chevron.up" : "info.circle")
+                        .font(.cartoon(12, .bold))
+                        .foregroundStyle(Ink.color.opacity(0.45))
+                }
+                .frame(maxWidth: .infinity)
+                if showSigning {
+                    Text(ProvisioningInfo.report)
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Ink.color.opacity(0.55))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.7)))
+                }
 
                 Text("Blobby v\(version) · built on Windows")
                     .font(.cartoon(13, .bold))
@@ -197,12 +214,11 @@ struct SettingsView: View {
                 .transition(.opacity)
             }
         }
-        .sheet(isPresented: $showingWidgets) {
-            WidgetPreviewGallery(habits: store.habits)
-                .presentationDragIndicator(.visible)
-                .presentationBackground(Color(red: 0.86, green: 0.90, blue: 0.97))
+        .sheet(isPresented: $showingRecap) {
+            WeeklyRecapView()
+                .environmentObject(store)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(34)
         .presentationBackground(Paper.color)

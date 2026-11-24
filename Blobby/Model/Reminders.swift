@@ -48,6 +48,7 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
                 guard let hour = habit.reminderHour else { continue }
                 for d in 0..<daysAhead {
                     guard let day = cal.date(byAdding: .day, value: d, to: now) else { continue }
+                    if !habit.isScheduled(on: day) { continue }        // rest day
                     if d == 0 && habit.isDone(on: day) { continue }   // already done today: stay quiet
 
                     var comps = cal.dateComponents([.year, .month, .day], from: day)

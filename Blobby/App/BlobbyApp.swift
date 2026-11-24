@@ -15,6 +15,7 @@ struct BlobbyApp: App {
         WindowGroup {
             HomeView()
                 .environmentObject(store)
+                .overlay { UndoToast().environmentObject(store) }
                 .preferredColorScheme(.light)   // the cartoon palette is designed for light mode
                 .onAppear { Reminders.shared.store = store }
         }

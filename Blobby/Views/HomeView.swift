@@ -12,11 +12,14 @@ struct HomeView: View {
     @State private var poofing: Set<UUID> = []
     @State private var editTick = 0
     @State private var editingHabit: Habit?
-    @State private var showingWidgets = false
+    @State private var showingRecap = false
+    @State private var showingOnboarding = false
+    @State private var levelUp: (habit: Habit, accessory: Accessory)?
+    @AppStorage("onboarded") private var onboarded = false
 
-    private var doneCount: Int {
-        store.habits.filter { $0.isDone() }.count
-    }
+    /// Only habits scheduled for today count towards "x of y done".
+    private var todays: [Habit] { store.habits.filter { $0.isScheduled() } }
+    private var doneCount: Int { todays.filter { $0.isDone() }.count }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -44,6 +47,13 @@ struct HomeView: View {
                                     editing: editing,
                                     poofing: poofing.contains(habit.id),
                                     onOpen: { if !editing { path.append(habit.id) } },
+                                    onLevelUp: { acc in
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                            if let h = store.habit(habit.id) {
+                                                withAnimation(.spring) { levelUp = (h, acc) }
+                                            }
+                                        }
+                                    },
                                     onDelete: {
                                         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                                             pendingDelete = habit
@@ -88,9 +98,24 @@ struct HomeView: View {
             AddHabitView()
                 .environmentObject(store)
         }
-        .sheet(isPresented: $showingWidgets) {
-            WidgetPreviewGallery(habits: store.habits)
-                .presentationBackground(Color(red: 0.86, green: 0.90, blue: 0.97))
+        .overlay {
+            if let lu = levelUp {
+                LevelUpPopup(habit: lu.habit, accessory: lu.accessory) {
+                    withAnimation(.spring) { levelUp = nil }
+                }
+                .transition(.opacity)
+            }
+        }
+        .sheet(isPresented: $showingRecap) {
+            WeeklyRecapView()
+                .environmentObject(store)
+        }
+        .fullScreenCover(isPresented: $showingOnboarding) {
+            OnboardingView {
+                onboarded = true
+                showingOnboarding = false
+            }
+            .environmentObject(store)
         }
         .sheet(item: $editingHabit) { habit in
             AddHabitView(existing: habit)
@@ -116,7 +141,17 @@ struct HomeView: View {
             }
             if LaunchOptions.showAdd { showingAdd = true }
             if LaunchOptions.showSettings { showingSettings = true }
-            if LaunchOptions.showWidgets { showingWidgets = true }
+            if LaunchOptions.showRecap { showingRecap = true }
+            if LaunchOptions.showOnboarding { showingOnboarding = true }
+            if LaunchOptions.showToast, let first = store.habits.first {
+                store.logStep(first.id)
+            }
+            // First launch: onboarding. Existing users with habits skip it.
+            if LaunchOptions.demo == nil && !onboarded {
+                if store.habits.isEmpty { showingOnboarding = true } else { onboarded = true }
+            } else if LaunchOptions.demo == nil && WeeklyRecap.isDue && !store.habits.isEmpty {
+                showingRecap = true
+            }
             if let i = LaunchOptions.editHabitIndex, store.habits.indices.contains(i) {
                 editingHabit = store.habits[i]
             }
@@ -140,7 +175,7 @@ struct HomeView: View {
                     .font(.cartoon(40))
                     .foregroundStyle(Ink.color)
                 if !store.habits.isEmpty {
-                    Text("\(doneCount) of \(store.habits.count) done")
+                    Text("\(doneCount) of \(todays.count) done today")
                         .font(.cartoon(16, .bold))
                         .foregroundStyle(Ink.color.opacity(0.6))
                         .contentTransition(.numericText())
@@ -200,6 +235,7 @@ struct HomeView: View {
         // 1) card shrinks + poof burst  2) remove it and let the others spring into place
         withAnimation(.easeIn(duration: 0.3)) { _ = poofing.insert(habit.id) }
         editTick += 1
+        SoundFX.shared.play(.poof)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.75)) {
                 store.delete(habit.id)
@@ -217,6 +253,7 @@ struct HabitCard: View {
     var editing: Bool = false
     var poofing: Bool = false
     let onOpen: () -> Void
+    var onLevelUp: (Accessory) -> Void = { _ in }
     var onDelete: () -> Void = {}
 
     @EnvironmentObject var store: HabitStore
@@ -239,7 +276,14 @@ struct HabitCard: View {
                             .font(.cartoon(19))
                             .foregroundStyle(Ink.color)
                             .lineLimit(1)
-                        if let time = habit.reminderText {
+                        if !habit.isScheduled() {
+                            Text("Rest day 😴")
+                                .font(.cartoon(11, .bold))
+                                .foregroundStyle(Ink.color.opacity(0.6))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Ink.color.opacity(0.08)))
+                        } else if let time = habit.reminderText {
                             Label(time, systemImage: "bell.fill")
                                 .font(.cartoon(11, .bold))
                                 .foregroundStyle(habit.color.deep)
@@ -260,10 +304,20 @@ struct HabitCard: View {
             .onTapGesture(perform: onOpen)
 
             Button {
+                let wasDone = habit.isDone()
+                let levelBefore = habit.unlocked.count
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    store.log(habit.id, delta: habit.step)
+                    store.logStep(habit.id)
                 }
                 bump += 1
+                if !wasDone, let updated = store.habit(habit.id), updated.isDone() {
+                    SoundFX.shared.play(.chime)
+                    if updated.unlocked.count > levelBefore, let acc = updated.unlocked.last {
+                        onLevelUp(acc)
+                    }
+                } else {
+                    SoundFX.shared.play(.pop, pitch: habit.kind.popPitch)
+                }
             } label: {
                 Image(systemName: habit.isDone() ? "checkmark" : "plus")
                     .font(.system(size: 20, weight: .black))
@@ -279,6 +333,7 @@ struct HabitCard: View {
         }
         .padding(14)
         .cartoonCard()
+        .opacity(habit.isScheduled() || editing ? 1 : 0.7)
         // Jiggle while editing
         .rotationEffect(.degrees(editing && !poofing ? (wiggle ? 1.2 : -1.2) : 0))
         .animation(editing ? .easeInOut(duration: wiggleSpeed).repeatForever(autoreverses: true) : .spring,

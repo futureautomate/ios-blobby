@@ -7,6 +7,8 @@ final class HabitStore: ObservableObject {
     @Published var habits: [Habit] = []
     /// Set when a reminder notification is tapped; HomeView opens that habit.
     @Published var openRequest: UUID?
+    /// Most recent "+" log, shown as an Undo toast for a few seconds.
+    @Published var lastLog: LogEvent?
 
     private let persist: Bool
 
@@ -27,6 +29,19 @@ final class HabitStore: ObservableObject {
     func add(_ habit: Habit) {
         habits.append(habit)
         save()
+    }
+
+    /// A user tap on "+": adds one step and offers Undo.
+    func logStep(_ id: UUID) {
+        guard let habit = habit(id) else { return }
+        log(id, delta: habit.step)
+        lastLog = LogEvent(habitID: id, amount: habit.step,
+                           text: "+\(habit.step.clean) \(habit.unitLabel(for: habit.step)) · \(habit.name)")
+    }
+
+    func undo(_ event: LogEvent) {
+        log(event.habitID, delta: -event.amount)
+        if lastLog?.id == event.id { lastLog = nil }
     }
 
     /// Replace an edited habit (keeps its id and history).
@@ -86,7 +101,8 @@ final class HabitStore: ObservableObject {
     static func sample() -> [Habit] {
         var water = Habit(name: "Drink water", emoji: "💧", color: .ocean, goal: 2000, unit: "ml", step: 250,
                           reminderHour: 11, reminderMinute: 0)
-        var walk = Habit(name: "Walk", emoji: "👟", color: .mint, goal: 8000, unit: "steps", step: 1000)
+        var walk = Habit(name: "Walk", emoji: "👟", color: .mint, goal: 8000, unit: "steps", step: 1000,
+                         days: [2, 4, 6])   // Mon, Wed, Fri
         var read = Habit(name: "Read", emoji: "📖", color: .grape, goal: 20, unit: "pages", step: 5)
         var calm = Habit(name: "Meditate", emoji: "🧘", color: .sunny, goal: 10, unit: "min", step: 5)
         var fruit = Habit(name: "Eat fruit", emoji: "🍎", color: .coral, goal: 3, unit: "servings", step: 1)
@@ -98,19 +114,26 @@ final class HabitStore: ObservableObject {
             guard let day = cal.date(byAdding: .day, value: -d, to: Date()) else { continue }
             let k = Habit.key(day)
             water.log[k] = d == 20 ? 1500 : 2000
-            walk.log[k] = d % 2 == 0 ? 8000 : 5000
+            walk.log[k] = walk.isScheduled(on: day) ? (d == 15 ? 5000 : 8000) : 0
             read.log[k] = d <= 9 ? 20 : (d % 4 == 0 ? 0 : 15)
             calm.log[k] = 10
             fruit.log[k] = d % 3 == 0 ? 2 : 3
         }
         let today = Habit.key(Date())
         water.log[today] = 1250
-        walk.log[today] = 8000
+        walk.log[today] = walk.isScheduled(on: Date()) ? 3000 : 0
         read.log[today] = 10
         calm.log[today] = 5
         fruit.log[today] = 1
         return [water, walk, read, calm, fruit]
     }
+}
+
+struct LogEvent: Identifiable, Equatable {
+    let id = UUID()
+    let habitID: UUID
+    let amount: Double
+    let text: String
 }
 
 /// Launch arguments used by CI to open specific screens for screenshots.
@@ -134,5 +157,7 @@ enum LaunchOptions {
     static var editHabitIndex: Int? { value("-editHabit").flatMap { Int($0) } }
     static var scrollToHistory: Bool { args.contains("-history") }
     static var showLevelUp: Bool { args.contains("-levelup") }
-    static var showWidgets: Bool { args.contains("-widgets") }
+    static var showRecap: Bool { args.contains("-recap") }
+    static var showOnboarding: Bool { args.contains("-onboarding") }
+    static var showToast: Bool { args.contains("-toast") }
 }

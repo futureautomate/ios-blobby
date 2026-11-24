@@ -12,10 +12,12 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     var log: [String: Double] // "yyyy-MM-dd" -> amount that day
     var reminderHour: Int?    // daily reminder time (nil = no reminder)
     var reminderMinute: Int?
+    /// Weekdays the habit runs on (Calendar weekday: 1 = Sunday … 7 = Saturday). nil = every day.
+    var days: [Int]?
 
     init(id: UUID = UUID(), name: String, emoji: String, color: HabitColor, kind: MascotKind? = nil,
          goal: Double, unit: String, step: Double, log: [String: Double] = [:],
-         reminderHour: Int? = nil, reminderMinute: Int? = nil) {
+         reminderHour: Int? = nil, reminderMinute: Int? = nil, days: [Int]? = nil) {
         self.id = id
         self.name = name
         self.emoji = emoji
@@ -27,10 +29,11 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         self.log = log
         self.reminderHour = reminderHour
         self.reminderMinute = reminderMinute
+        self.days = days
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, emoji, color, kind, goal, unit, step, log, reminderHour, reminderMinute
+        case id, name, emoji, color, kind, goal, unit, step, log, reminderHour, reminderMinute, days
     }
 
     /// Tolerant decoding: habits saved by v0.1 have no `kind`, so we pick one from the emoji/name.
@@ -48,6 +51,25 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
             ?? MascotKind.suggested(emoji: emoji, name: name)
         reminderHour = try c.decodeIfPresent(Int.self, forKey: .reminderHour)
         reminderMinute = try c.decodeIfPresent(Int.self, forKey: .reminderMinute)
+        days = try c.decodeIfPresent([Int].self, forKey: .days)
+    }
+
+    // MARK: - Schedule
+
+    /// Does this habit run on that day? (Rest days don't break streaks.)
+    func isScheduled(on date: Date = Date()) -> Bool {
+        guard let days = days, !days.isEmpty, days.count < 7 else { return true }
+        return days.contains(Calendar.current.component(.weekday, from: date))
+    }
+
+    /// "Every day", "Weekdays", "Weekends" or "Mon, Wed, Fri".
+    var scheduleText: String {
+        guard let days = days, !days.isEmpty, days.count < 7 else { return "Every day" }
+        let set = Set(days)
+        if set == [2, 3, 4, 5, 6] { return "Weekdays" }
+        if set == [1, 7] { return "Weekends" }
+        let names = Calendar.current.shortWeekdaySymbols
+        return days.sorted().map { names[$0 - 1] }.joined(separator: ", ")
     }
 
     var hasReminder: Bool { reminderHour != nil }
@@ -63,22 +85,25 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     /// Longest run of completed days ever (accessories are earned by this, so they're never lost).
     var bestStreak: Int {
         let cal = Calendar.current
-        let doneDays = log.compactMap { (key, value) -> Date? in
-            value >= goal && goal > 0 ? Habit.date(fromKey: key) : nil
-        }.sorted()
+        let today = cal.startOfDay(for: Date())
+        guard let first = log.keys.compactMap({ Habit.date(fromKey: $0) }).min() else { return 0 }
+        var day = cal.startOfDay(for: first)
         var best = 0
         var run = 0
-        var previous: Date?
-        for day in doneDays {
-            if let p = previous, cal.dateComponents([.day], from: p, to: day).day == 1 {
-                run += 1
-            } else {
-                run = 1
+        var guardCount = 0
+        while day <= today && guardCount < 3650 {
+            if isScheduled(on: day) {
+                if isDone(on: day) {
+                    run += 1
+                    best = max(best, run)
+                } else if day < today {
+                    run = 0          // a missed scheduled day breaks the run (today isn't over yet)
+                }
             }
-            best = max(best, run)
-            previous = day
+            day = cal.date(byAdding: .day, value: 1, to: day) ?? today.addingTimeInterval(86_400)
+            guardCount += 1
         }
-        return max(best, streak)
+        return best
     }
 
     var unlocked: [Accessory] { Accessory.allCases.filter { bestStreak >= $0.days } }
@@ -87,6 +112,21 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     var nextAccessory: Accessory? { Accessory.allCases.first { bestStreak < $0.days } }
 
     var daysCompleted: Int { log.values.filter { $0 >= goal && goal > 0 }.count }
+
+    /// Done / scheduled counts for the 7 days ending on `end` (weekly recap).
+    func weekStats(ending end: Date) -> (done: Int, scheduled: Int) {
+        let cal = Calendar.current
+        var done = 0
+        var scheduled = 0
+        for offset in 0..<7 {
+            guard let day = cal.date(byAdding: .day, value: -offset, to: end) else { continue }
+            if isScheduled(on: day) {
+                scheduled += 1
+                if isDone(on: day) { done += 1 }
+            }
+        }
+        return (done, scheduled)
+    }
     var totalLogged: Double { log.values.reduce(0, +) }
 
     /// "42.5 L" for ml habits, otherwise "1,250 pages".
@@ -124,15 +164,22 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         goal > 0 && amount(on: date) >= goal
     }
 
-    /// Consecutive completed days, counting today only if it's already done.
+    /// Consecutive completed *scheduled* days. Rest days are skipped; today only counts once done.
     var streak: Int {
         let cal = Calendar.current
         var day = Date()
+        var count = 0
+        var steps = 0
         if !isDone(on: day) {
             day = cal.date(byAdding: .day, value: -1, to: day) ?? day
         }
-        var count = 0
-        while isDone(on: day) && count < 3650 {
+        while steps < 3650 {
+            steps += 1
+            if !isScheduled(on: day) {
+                day = cal.date(byAdding: .day, value: -1, to: day) ?? day
+                continue
+            }
+            guard isDone(on: day) else { break }
             count += 1
             day = cal.date(byAdding: .day, value: -1, to: day) ?? day
         }

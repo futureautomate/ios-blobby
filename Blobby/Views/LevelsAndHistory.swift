@@ -131,6 +131,7 @@ struct LevelUpPopup: View {
         .onAppear {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.55)) { shown = true }
             bump += 1
+            SoundFX.shared.play(.fanfare)
         }
         .sensoryFeedback(.success, trigger: shown)
     }
@@ -205,8 +206,13 @@ struct HistoryCard: View {
         let done = habit.isDone(on: day)
         let future = day > Date()
         let today = cal.isDateInToday(day)
+        let rest = !habit.isScheduled(on: day) && !done
         return ZStack {
-            Circle().fill(done ? habit.color.main : habit.color.light.opacity(future ? 0.4 : 1))
+            Circle().fill(done ? habit.color.main
+                          : (rest ? Color.clear : habit.color.light.opacity(future ? 0.4 : 1)))
+            if rest {
+                Circle().stroke(Ink.color.opacity(0.15), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+            }
             if !done && p > 0 {
                 Circle()
                     .trim(from: 0, to: CGFloat(p))

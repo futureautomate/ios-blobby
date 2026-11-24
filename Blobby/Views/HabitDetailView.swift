@@ -216,11 +216,15 @@ struct HabitDetailView: View {
         let wasDone = habit.isDone()
         let levelBefore = habit.unlocked.count
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-            store.log(habitID, delta: habit.step)
+            store.logStep(habitID)
         }
         bump += 1
         labels.append(UUID())
+        if wasDone || store.habit(habitID)?.isDone() != true {
+            SoundFX.shared.play(.pop, pitch: habit.kind.popPitch)
+        }
         if !wasDone, let updated = store.habit(habitID), updated.isDone() {
+            SoundFX.shared.play(.chime)
             startCelebration(loop: false)
             // Finishing today can extend the streak past an accessory threshold.
             if updated.unlocked.count > levelBefore, let acc = updated.unlocked.last {
@@ -268,9 +272,13 @@ struct WeekStrip: View {
         let day = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
         let p = habit.progress(on: day)
         let done = habit.isDone(on: day)
+        let rest = !habit.isScheduled(on: day) && !done
         return VStack(spacing: 6) {
             ZStack {
-                Circle().fill(done ? habit.color.main : habit.color.light)
+                Circle().fill(done ? habit.color.main : (rest ? Paper.color : habit.color.light))
+                if rest {
+                    Text("z").font(.cartoon(13, .bold)).foregroundStyle(Ink.color.opacity(0.3))
+                }
                 Circle()
                     .trim(from: 0, to: CGFloat(p))
                     .stroke(habit.color.main, style: StrokeStyle(lineWidth: 5, lineCap: .round))

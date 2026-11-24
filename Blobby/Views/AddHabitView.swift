@@ -17,6 +17,7 @@ struct AddHabitView: View {
     @State private var remind = false
     @State private var reminderTime = Date()
     @State private var notifDenied = false
+    @State private var repeatDays: Set<Int> = Set(1...7)   // Calendar weekdays, 1 = Sunday
     @FocusState private var focused: Bool
 
     /// nil = creating a new habit, otherwise editing this one.
@@ -38,6 +39,7 @@ struct AddHabitView: View {
         _step = State(initialValue: h.step)
         _remind = State(initialValue: h.hasReminder)
         _reminderTime = State(initialValue: AddHabitView.time(h.reminderHour ?? 9, h.reminderMinute ?? 0))
+        _repeatDays = State(initialValue: Set(h.days ?? Array(1...7)))
     }
 
     private static func time(_ hour: Int, _ minute: Int) -> Date {
@@ -49,7 +51,7 @@ struct AddHabitView: View {
                           "📖", "✍️", "💻", "🎸", "🎨", "🌿", "💊", "🦷"]
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && goal > 0 && step > 0
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && goal > 0 && step > 0 && !repeatDays.isEmpty
     }
 
     var body: some View {
@@ -72,6 +74,7 @@ struct AddHabitView: View {
                     section("Each tap adds") {
                         stepper(value: $step, by: niceIncrement(step), trailing: AnyView(unitLabel))
                     }
+                    section("Repeat") { repeatSection }
                     section("Colour") { colors }
                     section("Reminder") { reminderSection }
                 }
@@ -357,6 +360,63 @@ struct AddHabitView: View {
         )
     }
 
+    private var repeatSection: some View {
+        let cal = Calendar.current
+        let order = (0..<7).map { (cal.firstWeekday - 1 + $0) % 7 + 1 }
+        let letters = cal.veryShortStandaloneWeekdaySymbols
+        return VStack(spacing: 12) {
+            HStack(spacing: 0) {
+                ForEach(order, id: \.self) { day in
+                    let on = repeatDays.contains(day)
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
+                            if on { repeatDays.remove(day) } else { repeatDays.insert(day) }
+                        }
+                    } label: {
+                        Text(letters[day - 1])
+                            .font(.cartoon(15))
+                            .foregroundStyle(on ? .white : Ink.color.opacity(0.5))
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(on ? color.main : Color.white))
+                            .overlay(Circle().stroke(on ? Ink.color : Ink.color.opacity(0.25), lineWidth: 2.5))
+                            .scaleEffect(on ? 1.05 : 1)
+                    }
+                    .buttonStyle(BouncyButtonStyle())
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            HStack(spacing: 8) {
+                repeatPreset("Every day", Set(1...7))
+                repeatPreset("Weekdays", [2, 3, 4, 5, 6])
+                repeatPreset("Weekends", [1, 7])
+            }
+            Text(repeatDays.isEmpty ? "Pick at least one day."
+                 : "Days off are rest days: they don't break your streak.")
+                .font(.cartoon(12, .semibold))
+                .foregroundStyle(repeatDays.isEmpty ? HabitColor.coral.deep : Ink.color.opacity(0.5))
+        }
+        .padding(14)
+        .cartoonCard(radius: 22)
+    }
+
+    private func repeatPreset(_ title: String, _ days: Set<Int>) -> some View {
+        let selected = repeatDays == days
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { repeatDays = days }
+        } label: {
+            Text(title)
+                .font(.cartoon(13, .bold))
+                .foregroundStyle(Ink.color)
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(selected ? color.light : Color.white))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(selected ? Ink.color : Ink.color.opacity(0.2), lineWidth: selected ? 2.5 : 1.5))
+        }
+        .buttonStyle(BouncyButtonStyle())
+    }
+
     private var reminderSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -485,6 +545,7 @@ struct AddHabitView: View {
         habit.step = step
         habit.reminderHour = remind ? comps.hour : nil
         habit.reminderMinute = remind ? comps.minute : nil
+        habit.days = repeatDays.count == 7 ? nil : repeatDays.sorted()
 
         withAnimation(.spring) {
             if existing != nil { store.update(habit) } else { store.add(habit) }
