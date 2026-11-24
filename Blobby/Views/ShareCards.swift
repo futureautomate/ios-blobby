@@ -136,9 +136,9 @@ struct HabitShareCard: View {
                     .foregroundStyle(Ink.color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                BlobMascot(progress: max(habit.progress(), 0.6), color: habit.color, kind: habit.kind, size: 170,
+                BlobMascot(progress: max(habit.progress(), 0.6), color: habit.color, kind: habit.kind, size: 150,
                            celebrate: habit.isDone(), sticker: habit.emoji, accessories: habit.unlocked, animated: false)
-                    .padding(.top, 20)
+                    .padding(.top, 44)   // room for hats / crowns under the title
                 HStack(spacing: 10) {
                     pill("🔥 \(habit.streak)-day streak", fill: HabitColor.sunny.light)
                     pill("LV \(habit.level) · \(habit.levelTitle)", fill: habit.color.light)
