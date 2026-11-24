@@ -34,14 +34,48 @@ final class HabitStore: ObservableObject {
     /// A user tap on "+": adds one step and offers Undo.
     func logStep(_ id: UUID) {
         guard let habit = habit(id) else { return }
+        if habit.type == .checkIn {
+            checkIn(id)
+            return
+        }
         log(id, delta: habit.step)
         lastLog = LogEvent(habitID: id, amount: habit.step,
                            text: "+\(habit.step.clean) \(habit.unitLabel(for: habit.step)) · \(habit.name)")
     }
 
     func undo(_ event: LogEvent) {
-        log(event.habitID, delta: -event.amount)
+        if let h = habit(event.habitID), h.type == .checkIn {
+            uncheck(event.habitID, day: event.day ?? Date())
+        } else {
+            log(event.habitID, delta: -event.amount)
+        }
         if lastLog?.id == event.id { lastLog = nil }
+    }
+
+    /// Check-in habits: mark the day done (once), noting if it was after the deadline.
+    func checkIn(_ id: UUID, at time: Date = Date()) {
+        guard let i = habits.firstIndex(where: { $0.id == id }) else { return }
+        let h = habits[i]
+        let day = h.checkInDay(for: time)
+        let key = Habit.key(day)
+        guard (h.log[key] ?? 0) < 1 else { return }
+        habits[i].log[key] = 1
+        let late = h.isLate(time)
+        if late && !habits[i].lateDays.contains(key) { habits[i].lateDays.append(key) }
+        save()
+        let lastNight = !Calendar.current.isDate(day, inSameDayAs: time)
+        let text = late ? "Checked in late · \(h.name)"
+            : (lastNight ? "✓ Counted for last night · \(h.name)" : "✓ \(h.name)")
+        lastLog = LogEvent(habitID: id, amount: 1, text: text, day: day)
+    }
+
+    /// Undo a check-in for a day.
+    func uncheck(_ id: UUID, day: Date = Date()) {
+        guard let i = habits.firstIndex(where: { $0.id == id }) else { return }
+        let key = Habit.key(day)
+        habits[i].log[key] = 0
+        habits[i].lateDays.removeAll { $0 == key }
+        save()
     }
 
     func setPaused(_ id: UUID, _ paused: Bool) {
@@ -149,9 +183,23 @@ final class HabitStore: ObservableObject {
         read.log[today] = 10
         calm.log[today] = 5
         fruit.log[today] = 1
-        var journal = Habit(name: "Journal", emoji: "✍️", color: .grape, kind: .blob, goal: 1, unit: "entry", step: 1)
+        // Check-in with a deadline: on time most days, late twice.
+        var wake = Habit(name: "Wake up early", emoji: "🌅", color: .sunny, kind: .sun, goal: 1, unit: "days", step: 1,
+                         type: .checkIn, deadlineHour: 6, deadlineMinute: 30)
+        // Limit: under 2 h most days, over twice.
+        var phone = Habit(name: "Less phone", emoji: "📵", color: .coral, kind: .flame, goal: 120, unit: "min", step: 15,
+                          type: .limit, createdKey: Habit.key(cal.date(byAdding: .day, value: -21, to: Date()) ?? Date()))
+        for d in 1...21 {
+            guard let day = cal.date(byAdding: .day, value: -d, to: Date()) else { continue }
+            let k = Habit.key(day)
+            wake.log[k] = d == 4 ? 0 : 1
+            if d == 6 || d == 13 { wake.lateDays.append(k) }
+            phone.log[k] = (d == 5 || d == 12) ? 165 : Double([60, 75, 90, 105, 45][d % 5])
+        }
+        phone.log[today] = 75
+                var journal = Habit(name: "Journal", emoji: "✍️", color: .grape, kind: .blob, goal: 1, unit: "entry", step: 1)
         journal.pause(on: cal.date(byAdding: .day, value: -3, to: Date()) ?? Date())
-        return [water, walk, read, calm, fruit, journal]
+        return [water, wake, phone, walk, read, calm, fruit, journal]
     }
 }
 
@@ -160,6 +208,7 @@ struct LogEvent: Identifiable, Equatable {
     let habitID: UUID
     let amount: Double
     let text: String
+    var day: Date? = nil
 }
 
 /// Launch arguments used by CI to open specific screens for screenshots.

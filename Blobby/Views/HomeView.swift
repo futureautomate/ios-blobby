@@ -33,7 +33,8 @@ struct HomeView: View {
     private var hintHabit: Habit? {
         guard Hints.enabled, !editing else { return nil }
         // Only the first card, so the hint row above the list points at the right habit.
-        guard let first = active.first, first.isScheduled(on: Date()), !first.isDone() else { return nil }
+        guard let first = active.first, first.isScheduled(on: Date()), !first.finishedToday,
+              first.type != .limit else { return nil }
         return first
     }
     private var hintStage: Int? {   // 1 = tap +, 2 = tap card
@@ -47,7 +48,7 @@ struct HomeView: View {
 
     /// Only habits scheduled for today count towards "x of y done".
     private var todays: [Habit] { store.habits.filter { $0.isScheduled() } }
-    private var doneCount: Int { todays.filter { $0.isDone() }.count }
+    private var doneCount: Int { todays.filter { $0.goodToday }.count }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -94,7 +95,7 @@ struct HomeView: View {
                                     if stage == 1 { Spacer(minLength: 0) }
                                     HintBubble(
                                         text: stage == 1
-                                            ? "Tap + to give \(habit.kind.title) a sip!"
+                                            ? (habit.type == .checkIn ? "Tap ✓ when you've done it!" : "Tap + to give \(habit.kind.title) a sip!")
                                             : "Tap the card to see \(habit.kind.title) up close",
                                         color: stage == 1 ? .sunny : .mint,
                                         fingerAlignment: stage == 1 ? .trailing : .leading,
@@ -473,6 +474,15 @@ struct HabitCard: View {
     @State private var bump = 0
     @State private var wiggle = false
 
+    /// + button colour: done = deep/yellow, late check-in = grey, over the limit = coral.
+    private var buttonFill: Color {
+        if habit.finishedToday {
+            if habit.type == .checkIn && !habit.isDone(on: habit.checkInDay(for: Date())) { return Color.gray }
+            return habit.color.doneFill
+        }
+        return habit.isOver() ? HabitColor.coral.main : habit.color.main
+    }
+
     /// Slightly different wiggle speed per card so they don't move in lockstep.
     private var wiggleSpeed: Double {
         0.12 + Double(abs(habit.id.hashValue % 4)) * 0.012
@@ -482,7 +492,7 @@ struct HabitCard: View {
         HStack(spacing: 14) {
             HStack(spacing: 14) {
                 BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 78, bump: bump,
-                           sticker: habit.emoji, accessories: habit.unlocked)
+                           sticker: habit.emoji, sad: habit.isOver(), accessories: habit.unlocked)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text(habit.name)
@@ -507,17 +517,24 @@ struct HabitCard: View {
                                 .background(Capsule().fill(habit.color.light))
                         }
                     }
-                    Text("\(habit.amount().clean) / \(habit.goal.clean) \(habit.unit)")
+                    Text(habit.statusText())
                         .font(.cartoon(14, .semibold))
-                        .foregroundStyle(Ink.text.opacity(0.6))
+                        .foregroundStyle(habit.isOver() ? HabitColor.coral.tone : Ink.text.opacity(0.6))
                         .contentTransition(.numericText())
-                    ProgressPill(progress: habit.progress(), color: habit.color, height: 12)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    ProgressPill(progress: habit.barProgress, color: habit.isOver() ? .coral : habit.color, height: 12)
                 }
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: onOpen)
 
             Button {
+                if habit.type == .checkIn && habit.checkedToday {
+                    bump += 1          // already checked in: just a happy wiggle
+                    return
+                }
+                let wasOver = habit.isOver()
                 let wasDone = habit.isDone()
                 let levelBefore = habit.unlocked.count
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
@@ -529,22 +546,25 @@ struct HabitCard: View {
                     if updated.unlocked.count > levelBefore, let acc = updated.unlocked.last {
                         onLevelUp(acc)
                     }
+                } else if !wasOver, store.habit(habit.id)?.isOver() == true {
+                    SoundFX.shared.play(.poof)     // just went over the limit
                 } else {
                     SoundFX.shared.play(.pop, pitch: habit.kind.popPitch)
                 }
             } label: {
-                Image(systemName: habit.isDone() ? "checkmark" : "plus")
+                Image(systemName: habit.finishedToday ? "checkmark" : (habit.type == .checkIn ? "checkmark.circle" : "plus"))
                     .font(.system(size: 20, weight: .black))
-                    .foregroundStyle(habit.isDone() ? HabitColor.doneInk : .white)
+                    .foregroundStyle(habit.finishedToday ? HabitColor.doneInk : .white)
                     .frame(width: 46, height: 46)
-                    .background(Circle().fill(habit.isDone() ? habit.color.doneFill : habit.color.main))
+                    .background(Circle().fill(buttonFill))
                     .overlay(Circle().stroke(Ink.color, lineWidth: 3))
             }
             .buttonStyle(BouncyButtonStyle())
             .opacity(editing ? 0.25 : 1)
             .disabled(editing)
-            .accessibilityLabel("Log \(habit.step.clean) \(habit.unitLabel(for: habit.step)) for \(habit.name)")
-            .accessibilityValue("\(habit.amount().clean) of \(habit.goal.clean) \(habit.unit)\(habit.isDone() ? ", done" : "")")
+            .accessibilityLabel(habit.type == .checkIn ? "Check in \(habit.name)"
+                                : "Log \(habit.step.clean) \(habit.unitLabel(for: habit.step)) for \(habit.name)")
+            .accessibilityValue(habit.statusText())
         }
         .padding(14)
         .cartoonCard()

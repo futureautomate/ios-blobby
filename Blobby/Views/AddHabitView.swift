@@ -18,6 +18,9 @@ struct AddHabitView: View {
     @State private var reminderTime = Date()
     @State private var notifDenied = false
     @State private var repeatDays: Set<Int> = Set(1...7)   // Calendar weekdays, 1 = Sunday
+    @State private var type: HabitType = .count
+    @State private var useDeadline = false
+    @State private var deadline = AddHabitView.time(6, 30)
     @FocusState private var focused: Bool
 
     /// nil = creating a new habit, otherwise editing this one.
@@ -40,6 +43,9 @@ struct AddHabitView: View {
         _remind = State(initialValue: h.hasReminder)
         _reminderTime = State(initialValue: AddHabitView.time(h.reminderHour ?? 9, h.reminderMinute ?? 0))
         _repeatDays = State(initialValue: Set(h.days ?? Array(1...7)))
+        _type = State(initialValue: h.type)
+        _useDeadline = State(initialValue: h.deadlineHour != nil)
+        _deadline = State(initialValue: AddHabitView.time(h.deadlineHour ?? 6, h.deadlineMinute ?? 30))
     }
 
     private static func time(_ hour: Int, _ minute: Int) -> Date {
@@ -68,11 +74,16 @@ struct AddHabitView: View {
                     section("Pick a buddy") { characters }
                     section("Name") { nameField }
                     section("Sticker") { emojiGrid }
-                    section("Daily goal") {
-                        stepper(value: $goal, by: step > 0 ? step : 1, trailing: AnyView(unitField))
-                    }
-                    section("Each tap adds") {
-                        stepper(value: $step, by: niceIncrement(step), trailing: AnyView(unitLabel))
+                    section("Type") { typePicker }
+                    if type == .checkIn {
+                        section("Deadline") { deadlineSection }
+                    } else {
+                        section(type == .limit ? "Daily limit" : "Daily goal") {
+                            stepper(value: $goal, by: step > 0 ? step : 1, trailing: AnyView(unitField))
+                        }
+                        section("Each tap adds") {
+                            stepper(value: $step, by: niceIncrement(step), trailing: AnyView(unitLabel))
+                        }
                     }
                     section("Repeat") { repeatSection }
                     section("Colour") { colors }
@@ -130,7 +141,7 @@ struct AddHabitView: View {
                     .font(.cartoon(20))
                     .foregroundStyle(Ink.text)
                     .lineLimit(2)
-                Text("\(goal.clean) \(unit) a day")
+                Text(previewLine)
                     .font(.cartoon(15, .bold))
                     .foregroundStyle(Ink.text.opacity(0.65))
                 Text("\(kind.title) \(kind.hint)")
@@ -447,6 +458,101 @@ struct AddHabitView: View {
         .buttonStyle(BouncyButtonStyle())
     }
 
+    private var previewLine: String {
+        switch type {
+        case .count: return "\(goal.clean) \(unit) a day"
+        case .checkIn: return useDeadline ? "Check in by \(deadline.formatted(date: .omitted, time: .shortened))" : "Check in once a day"
+        case .limit: return "Max \(goal.clean) \(unit) a day"
+        }
+    }
+
+    /// Build up / Check in / Cut down.
+    private var typePicker: some View {
+        HStack(spacing: 10) {
+            ForEach(HabitType.allCases) { t in
+                let selected = type == t
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        type = t
+                        if t == .limit && unit == "days" { unit = "min"; goal = 120; step = 15 }
+                        if t == .count && unit == "days" { unit = "times"; goal = 1; step = 1 }
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Text(t.emoji).font(.system(size: 24))
+                        Text(t.title).font(.cartoon(15)).foregroundStyle(selected ? Ink.color : Ink.text)
+                        Text(t.hint).font(.cartoon(11, .semibold))
+                            .foregroundStyle((selected ? Ink.color : Ink.text).opacity(0.6))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 4)
+                    .cartoonCard(radius: 16, fill: selected ? color.main : Card.color)
+                }
+                .buttonStyle(BouncyButtonStyle())
+                .accessibilityLabel("\(t.title): \(t.hint)")
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+    }
+
+    /// Check-in deadline: "by 6:30" (late check-ins are logged but don't keep the streak).
+    private var deadlineSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Text("⏰").font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Must be done by")
+                        .font(.cartoon(17))
+                        .foregroundStyle(Ink.text)
+                    Text(useDeadline ? "Later check-ins are logged but don't keep the streak"
+                                     : "Off — any time that day counts")
+                        .font(.cartoon(13, .medium))
+                        .foregroundStyle(Ink.text.opacity(0.55))
+                }
+                Spacer()
+                CartoonToggle(isOn: $useDeadline, color: color)
+            }
+            if useDeadline {
+                HStack(spacing: 8) {
+                    deadlineChip("🌅", 6, 30)
+                    deadlineChip("☀️", 8, 0)
+                    deadlineChip("🌙", 22, 30)
+                    deadlineChip("😴", 23, 0)
+                }
+                DatePicker("Deadline", selection: $deadline, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .datePickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 120)
+                    .clipped()
+                Text("Bedtime habits: checking in just after midnight still counts for the night before.")
+                    .font(.cartoon(12, .semibold))
+                    .foregroundStyle(Ink.text.opacity(0.5))
+            }
+        }
+        .padding(16)
+        .cartoonCard(radius: 22)
+    }
+
+    private func deadlineChip(_ icon: String, _ h: Int, _ m: Int) -> some View {
+        let t = AddHabitView.time(h, m)
+        let selected = Calendar.current.dateComponents([.hour, .minute], from: deadline) == DateComponents(hour: h, minute: m)
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { deadline = t }
+        } label: {
+            Text("\(icon) \(t.formatted(date: .omitted, time: .shortened))")
+                .font(.cartoon(13, .bold))
+                .foregroundStyle(Ink.text)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        }
+        .cartoonCard(radius: 12, fill: selected ? color.light : Card.color)
+        .buttonStyle(BouncyButtonStyle())
+    }
+
     private var reminderSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -558,6 +664,9 @@ struct AddHabitView: View {
             goal = p.goal
             unit = p.unit
             step = p.step
+            type = p.type
+            useDeadline = p.deadline != nil
+            if let d = p.deadline { deadline = AddHabitView.time(d.0, d.1) }
         }
         kindPicked = false
         previewBump += 1
@@ -570,9 +679,21 @@ struct AddHabitView: View {
         habit.emoji = emoji.isEmpty ? "⭐️" : emoji
         habit.color = color
         habit.kind = kind
-        habit.goal = goal
-        habit.unit = unit
-        habit.step = step
+        habit.type = type
+        if type == .checkIn {
+            habit.goal = 1
+            habit.step = 1
+            habit.unit = "days"
+            let d = Calendar.current.dateComponents([.hour, .minute], from: deadline)
+            habit.deadlineHour = useDeadline ? d.hour : nil
+            habit.deadlineMinute = useDeadline ? d.minute : nil
+        } else {
+            habit.goal = goal
+            habit.unit = unit
+            habit.step = step
+            habit.deadlineHour = nil
+            habit.deadlineMinute = nil
+        }
         habit.reminderHour = remind ? comps.hour : nil
         habit.reminderMinute = remind ? comps.minute : nil
         habit.days = repeatDays.count == 7 ? nil : repeatDays.sorted()

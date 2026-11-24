@@ -81,14 +81,15 @@ struct HabitDetailView: View {
                     ZStack {
                         BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind,
                                    size: 230, bump: bump, celebrate: celebrating, sticker: habit.emoji,
-                                   accessories: habit.unlocked, sleepy: habit.isPaused)
+                                   sad: habit.isOver(), accessories: habit.unlocked, sleepy: habit.isPaused)
                             .onTapGesture { addStep(habit) }
 
                         ForEach(drops, id: \.self) { id in
                             FallingEmoji(emoji: habit.emoji) { land(id) }
                         }
                         ForEach(labels, id: \.self) { id in
-                            FloatingLabel(text: "+\(habit.step.clean) \(habit.unitLabel(for: habit.step))", color: habit.color.tone)
+                            FloatingLabel(text: habit.type == .checkIn ? "✓" : "+\(habit.step.clean) \(habit.unitLabel(for: habit.step))",
+                                          color: habit.isOver() ? HabitColor.coral.tone : habit.color.tone)
                                 .onAppear {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.05) {
                                         labels.removeAll { $0 == id }
@@ -100,27 +101,38 @@ struct HabitDetailView: View {
                     .padding(.top, 10)
 
                     // Amount
+                    if habit.type == .checkIn {
+                        checkInStatus(habit)
+                    } else {
                     VStack(spacing: 10) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(habit.amount().clean)
                                 .font(.cartoon(44))
                                 .contentTransition(.numericText())
-                            Text("/ \(habit.goal.clean) \(habit.unit)")
+                            Text("/ \(habit.goal.clean) \(habit.unit)\(habit.type == .limit ? " limit" : "")")
                                 .font(.cartoon(18, .bold))
                                 .foregroundStyle(Ink.text.opacity(0.55))
                         }
                         .foregroundStyle(Ink.text)
 
-                        ProgressPill(progress: habit.progress(), color: habit.color, height: 16)
+                        ProgressPill(progress: habit.barProgress, color: habit.isOver() ? .coral : habit.color, height: 16)
                             .padding(.horizontal, 30)
 
-                        Text(habit.isDone() ? "Goal reached! \(habit.kind.title) is so happy 🎉" : "\((habit.goal - habit.amount()).clean) \(habit.unitLabel(for: habit.goal - habit.amount())) to go")
+                        Text(amountMessage(habit))
                             .font(.cartoon(16, .bold))
-                            .foregroundStyle(habit.isDone() ? habit.color.tone : Ink.text.opacity(0.6))
+                            .foregroundStyle(habit.isOver() ? HabitColor.coral.tone
+                                             : (habit.isDone() ? habit.color.tone : Ink.text.opacity(0.6)))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
                             .contentTransition(.numericText())
+                    }
                     }
 
                     // Buttons
+                    if habit.type == .checkIn {
+                        checkInButton(habit)
+                            .padding(.horizontal, 20)
+                    } else {
                     HStack(spacing: 14) {
                         Button {
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
@@ -148,10 +160,11 @@ struct HabitDetailView: View {
                                 .padding(.horizontal, 6)
                         }
                         .accessibilityValue("\(habit.amount().clean) of \(habit.goal.clean) \(habit.unit)")
-                        .cartoonCard(radius: 20, fill: habit.color.main)
+                        .cartoonCard(radius: 20, fill: habit.isOver() ? HabitColor.coral.main : habit.color.main)
                         .buttonStyle(BouncyButtonStyle())
                     }
                     .padding(.horizontal, 20)
+                    }
 
                     WeekStrip(habit: habit)
                         .padding(.horizontal, 20)
@@ -296,7 +309,72 @@ struct HabitDetailView: View {
     }
 
     private func addStep(_ habit: Habit) {
+        if habit.type == .checkIn && habit.checkedToday { bump += 1; return }
         drops.append(UUID())
+    }
+
+    private func amountMessage(_ habit: Habit) -> String {
+        if habit.type == .limit {
+            if habit.isOver() {
+                let over = habit.amount() - habit.goal
+                return "Over by \(over.clean) \(habit.unitLabel(for: over)). Tomorrow's a fresh start 💪"
+            }
+            let left = habit.remaining()
+            return "\(left.clean) \(habit.unitLabel(for: left)) left today · the day counts at midnight"
+        }
+        if habit.isDone() { return "Goal reached! \(habit.kind.title) is so happy 🎉" }
+        let left = habit.goal - habit.amount()
+        return "\(left.clean) \(habit.unitLabel(for: left)) to go"
+    }
+
+    @ViewBuilder
+    private func checkInStatus(_ habit: Habit) -> some View {
+        let day = habit.checkInDay(for: Date())
+        let checked = habit.amount(on: day) >= 1
+        let late = habit.lateDays.contains(Habit.key(day))
+        VStack(spacing: 8) {
+            Text(checked ? (late ? "Checked in late 😅" : "Done for today! 🎉") : "Not yet today")
+                .font(.cartoon(32))
+                .foregroundStyle(Ink.text)
+            Text(checked
+                 ? (late ? "Logged, but after \(habit.deadlineText ?? "the deadline"), so it doesn't count toward the streak."
+                         : "\(habit.kind.title) is proud of you.")
+                 : (habit.deadlineText.map { "Check in by \($0) to keep your streak." } ?? "Tap the button when you've done it."))
+                .font(.cartoon(16, .bold))
+                .foregroundStyle(late ? HabitColor.coral.tone : Ink.text.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 30)
+        }
+    }
+
+    @ViewBuilder
+    private func checkInButton(_ habit: Habit) -> some View {
+        let day = habit.checkInDay(for: Date())
+        if habit.amount(on: day) >= 1 {
+            Button {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { store.uncheck(habitID, day: day) }
+                bump += 1
+            } label: {
+                Label("Undo check-in", systemImage: "arrow.uturn.backward")
+                    .font(.cartoon(18))
+                    .foregroundStyle(Ink.text)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 56)
+            }
+            .cartoonCard(radius: 20)
+            .buttonStyle(BouncyButtonStyle())
+        } else {
+            Button { addStep(habit) } label: {
+                Label("I did it!", systemImage: "checkmark")
+                    .font(.cartoon(22))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 64)
+            }
+            .cartoonCard(radius: 20, fill: habit.color.main)
+            .buttonStyle(BouncyButtonStyle())
+            .accessibilityLabel("Check in \(habit.name)")
+        }
     }
 
     private func land(_ dropID: UUID) {

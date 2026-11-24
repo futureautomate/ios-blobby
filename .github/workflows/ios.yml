@@ -96,6 +96,11 @@ jobs:
             sleep 5
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          # v0.10 habit types: home with check-in + limit cards, check-in screen, limit screen, add with type picker
+          shot t1-home-types -demo sample
+          shot t2-checkin  -demo sample -open 1
+          shot t3-limit    -demo sample -open 2
+          shot t4-limit-night -demo sample -open 2 -night
           # v0.9.5 first-time hints
           shot h1-hint-log  -demo sample -hints
           shot h2-hint-night -demo sample -hints -night

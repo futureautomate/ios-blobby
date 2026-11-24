@@ -1,5 +1,38 @@
 import Foundation
 
+/// What kind of habit this is.
+enum HabitType: String, Codable, CaseIterable, Identifiable {
+    /// Do more: fill up to a goal (2 L water, 20 pages).
+    case count
+    /// Do it once a day, optionally before a deadline (wake up by 6:30, sleep by 11).
+    case checkIn
+    /// Do less: stay under a daily limit (phone time, sugar). The day is judged when it ends.
+    case limit
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .count: return "Build up"
+        case .checkIn: return "Check in"
+        case .limit: return "Cut down"
+        }
+    }
+    var emoji: String {
+        switch self {
+        case .count: return "📈"
+        case .checkIn: return "✅"
+        case .limit: return "✂️"
+        }
+    }
+    var hint: String {
+        switch self {
+        case .count: return "Reach a daily amount"
+        case .checkIn: return "Once a day, maybe by a time"
+        case .limit: return "Stay under a daily limit"
+        }
+    }
+}
+
 struct Habit: Identifiable, Codable, Equatable, Hashable {
     var id: UUID
     var name: String
@@ -17,11 +50,22 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     /// Paused habits are hidden from Today, send no reminders and keep their streak.
     var pausedSince: String?        // day key the pause started, nil = active
     var skipDays: [String]          // day keys from past pauses (treated like rest days)
+    var type: HabitType = .count
+    /// Check-in deadline ("by 6:30"). nil = any time that day.
+    var deadlineHour: Int?
+    var deadlineMinute: Int?
+    /// Check-in days that were tapped after the deadline (logged, but they don't count).
+    var lateDays: [String] = []
+    /// Day the habit was created. Limit habits are judged from this day on
+    /// (a day with nothing logged is a win, so we need to know where to start).
+    var createdKey: String?
 
     init(id: UUID = UUID(), name: String, emoji: String, color: HabitColor, kind: MascotKind? = nil,
          goal: Double, unit: String, step: Double, log: [String: Double] = [:],
          reminderHour: Int? = nil, reminderMinute: Int? = nil, days: [Int]? = nil,
-         pausedSince: String? = nil, skipDays: [String] = []) {
+         pausedSince: String? = nil, skipDays: [String] = [],
+         type: HabitType = .count, deadlineHour: Int? = nil, deadlineMinute: Int? = nil,
+         createdKey: String? = Habit.key(Date())) {
         self.id = id
         self.name = name
         self.emoji = emoji
@@ -36,11 +80,16 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         self.days = days
         self.pausedSince = pausedSince
         self.skipDays = skipDays
+        self.type = type
+        self.deadlineHour = deadlineHour
+        self.deadlineMinute = deadlineMinute
+        self.createdKey = createdKey
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, emoji, color, kind, goal, unit, step, log, reminderHour, reminderMinute, days
         case pausedSince, skipDays
+        case type, deadlineHour, deadlineMinute, lateDays, createdKey
     }
 
     /// Tolerant decoding: habits saved by v0.1 have no `kind`, so we pick one from the emoji/name.
@@ -61,7 +110,69 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         days = try c.decodeIfPresent([Int].self, forKey: .days)
         pausedSince = try c.decodeIfPresent(String.self, forKey: .pausedSince)
         skipDays = try c.decodeIfPresent([String].self, forKey: .skipDays) ?? []
+        type = try c.decodeIfPresent(HabitType.self, forKey: .type) ?? .count
+        deadlineHour = try c.decodeIfPresent(Int.self, forKey: .deadlineHour)
+        deadlineMinute = try c.decodeIfPresent(Int.self, forKey: .deadlineMinute)
+        lateDays = try c.decodeIfPresent([String].self, forKey: .lateDays) ?? []
+        createdKey = try c.decodeIfPresent(String.self, forKey: .createdKey)
     }
+
+    // MARK: - Types
+
+    /// First day this habit counts. Limit habits start on the day they were created
+    /// (or the first log for older data); others from their first log.
+    var startDay: Date? {
+        let firstLog = log.keys.compactMap { Habit.date(fromKey: $0) }.min()
+        let created = createdKey.flatMap { Habit.date(fromKey: $0) }
+        switch type {
+        case .limit: return [created, firstLog].compactMap { $0 }.min()
+        default: return firstLog
+        }
+    }
+
+    var hasDeadline: Bool { type == .checkIn && deadlineHour != nil }
+
+    /// "6:30"
+    var deadlineText: String? {
+        guard hasDeadline, let h = deadlineHour else { return nil }
+        let date = Calendar.current.date(from: DateComponents(hour: h, minute: deadlineMinute ?? 0)) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    /// Bedtime-style deadlines (6 pm or later): a tap after midnight still belongs to the night before.
+    var isNightDeadline: Bool { (deadlineHour ?? 0) >= 18 }
+
+    /// Which day a check-in made at `time` counts for. For bedtime habits, a tap before 4 am
+    /// still belongs to "last night".
+    func checkInDay(for time: Date) -> Date {
+        let cal = Calendar.current
+        if isNightDeadline && cal.component(.hour, from: time) < 4 {
+            return cal.date(byAdding: .day, value: -1, to: time) ?? time
+        }
+        return time
+    }
+
+    /// Is a check-in at `time` after the deadline?
+    func isLate(_ time: Date) -> Bool {
+        guard hasDeadline, let h = deadlineHour else { return false }
+        let cal = Calendar.current
+        let hour = cal.component(.hour, from: time)
+        let minutes = hour * 60 + cal.component(.minute, from: time)
+        let deadline = h * 60 + (deadlineMinute ?? 0)
+        if isNightDeadline && hour < 4 { return true }   // after midnight = past an evening deadline
+        return minutes > deadline
+    }
+
+    /// Limit habits: went over the limit that day.
+    func isOver(on date: Date = Date()) -> Bool {
+        type == .limit && amount(on: date) > goal
+    }
+
+    /// Limit habits: how much is left today.
+    func remaining(on date: Date = Date()) -> Double {
+        max(0, goal - amount(on: date))
+    }
+
 
     // MARK: - Pause
 
@@ -123,7 +234,7 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     var bestStreak: Int {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
-        guard let first = log.keys.compactMap({ Habit.date(fromKey: $0) }).min() else { return 0 }
+        guard let first = startDay else { return 0 }
         var day = cal.startOfDay(for: first)
         var best = 0
         var run = 0
@@ -148,7 +259,10 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     var levelTitle: String { unlocked.last?.levelTitle ?? "Newbie" }
     var nextAccessory: Accessory? { Accessory.allCases.first { bestStreak < $0.days } }
 
-    var daysCompleted: Int { log.values.filter { $0 >= goal && goal > 0 }.count }
+    var daysCompleted: Int {
+        guard let start = startDay else { return 0 }
+        return stats(from: start, to: Date()).done
+    }
 
     /// Done / scheduled counts for the 7 days ending on `end` (weekly recap).
     func weekStats(ending end: Date) -> (done: Int, scheduled: Int) {
@@ -168,7 +282,8 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
 
     /// First day anything was logged (used so reports don't count days before the habit existed).
     var firstLogDay: Date? {
-        log.filter { $0.value > 0 }.keys.compactMap { Habit.date(fromKey: $0) }.min()
+        if type == .limit { return startDay }
+        return log.filter { $0.value > 0 }.keys.compactMap { Habit.date(fromKey: $0) }.min()
     }
 
     /// Done / scheduled days and amount logged between two days (inclusive),
@@ -216,9 +331,18 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         log[Habit.key(date)] ?? 0
     }
 
+    /// How full the buddy is. Limit habits start full and drain as you use up the limit.
     func progress(on date: Date = Date()) -> Double {
-        guard goal > 0 else { return 0 }
-        return min(amount(on: date) / goal, 1)
+        switch type {
+        case .count:
+            guard goal > 0 else { return 0 }
+            return min(amount(on: date) / goal, 1)
+        case .checkIn:
+            return amount(on: date) >= 1 ? 1 : 0
+        case .limit:
+            guard goal > 0 else { return 1 }
+            return max(0, 1 - amount(on: date) / goal)
+        }
     }
 
     /// "servings" -> "serving" when the amount is exactly 1.
@@ -226,8 +350,68 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         amount == 1 && unit.count > 1 && unit.hasSuffix("s") ? String(unit.dropLast()) : unit
     }
 
+    /// Count: reached the goal. Check-in: checked in (on time). Limit: a finished day that stayed under.
     func isDone(on date: Date = Date()) -> Bool {
-        goal > 0 && amount(on: date) >= goal
+        switch type {
+        case .count:
+            return goal > 0 && amount(on: date) >= goal
+        case .checkIn:
+            return amount(on: date) >= 1 && !lateDays.contains(Habit.key(date))
+        case .limit:
+            let cal = Calendar.current
+            let day = cal.startOfDay(for: date)
+            guard day < cal.startOfDay(for: Date()) else { return false }   // today isn't over yet
+            if let start = startDay, day < cal.startOfDay(for: start) { return false }
+            return amount(on: date) <= goal
+        }
+    }
+
+    /// Limit habits today: still under the limit (shown as "on track", not "done").
+    var onTrackToday: Bool { type == .limit && !isOver() }
+
+    /// Check-in habits: tapped today (on time or late).
+    var checkedToday: Bool { type == .checkIn && amount(on: checkInDay(for: Date())) >= 1 }
+
+    /// "Going well today" for the Today header: goal reached, checked in on time, or under the limit so far.
+    var goodToday: Bool {
+        switch type {
+        case .count: return isDone()
+        case .checkIn: return isDone(on: checkInDay(for: Date()))
+        case .limit: return !isOver()
+        }
+    }
+
+    /// Shown on the + button: ✓ when there's nothing more to do today.
+    var finishedToday: Bool {
+        switch type {
+        case .count: return isDone()
+        case .checkIn: return checkedToday
+        case .limit: return false
+        }
+    }
+
+    /// Progress bar: limit habits show how much of the limit is used.
+    var barProgress: Double {
+        guard type == .limit else { return progress() }
+        return goal > 0 ? min(amount() / goal, 1) : 0
+    }
+
+    /// Short status for cards: "1,250 / 2,000 ml", "Done at 6:12" style, "45 min left".
+    func statusText(on date: Date = Date()) -> String {
+        switch type {
+        case .count:
+            return "\(amount(on: date).clean) / \(goal.clean) \(unitLabel(for: goal))"
+        case .checkIn:
+            if amount(on: date) >= 1 {
+                return lateDays.contains(Habit.key(date)) ? "Checked in late" : "Done for today ✓"
+            }
+            if let d = deadlineText { return "Check in by \(d)" }
+            return "Not yet today"
+        case .limit:
+            let used = amount(on: date)
+            if used > goal { return "Over by \((used - goal).clean) \(unitLabel(for: used - goal))" }
+            return "\(used.clean) / \(goal.clean) \(unitLabel(for: goal)) · \(remaining(on: date).clean) left"
+        }
     }
 
     /// Consecutive completed *scheduled* days. Rest days are skipped; today only counts once done.
@@ -262,6 +446,20 @@ struct HabitPreset: Identifiable {
     let step: Double
     let color: HabitColor
     let kind: MascotKind
+    var type: HabitType = .count
+    var deadline: (Int, Int)? = nil
+
+    /// "2000 ml", "by 6:30 AM", "max 120 min"
+    var summary: String {
+        switch type {
+        case .count: return "\(goal.clean) \(unit)"
+        case .checkIn:
+            guard let d = deadline,
+                  let t = Calendar.current.date(from: DateComponents(hour: d.0, minute: d.1)) else { return "once a day" }
+            return "by \(t.formatted(date: .omitted, time: .shortened))"
+        case .limit: return "max \(goal.clean) \(unit)"
+        }
+    }
 
     static let all: [HabitPreset] = [
         HabitPreset(name: "Drink water", emoji: "💧", goal: 2000, unit: "ml", step: 250, color: .ocean, kind: .drop),
@@ -269,6 +467,14 @@ struct HabitPreset: Identifiable {
         HabitPreset(name: "Read", emoji: "📖", goal: 20, unit: "pages", step: 5, color: .grape, kind: .sprout),
         HabitPreset(name: "Meditate", emoji: "🧘", goal: 10, unit: "min", step: 5, color: .sunny, kind: .sun),
         HabitPreset(name: "Eat fruit", emoji: "🍎", goal: 3, unit: "servings", step: 1, color: .coral, kind: .apple),
+        HabitPreset(name: "Wake up early", emoji: "🌅", goal: 1, unit: "days", step: 1, color: .sunny, kind: .sun,
+                    type: .checkIn, deadline: (6, 30)),
+        HabitPreset(name: "Sleep by 11", emoji: "🌙", goal: 1, unit: "days", step: 1, color: .grape, kind: .blob,
+                    type: .checkIn, deadline: (23, 0)),
+        HabitPreset(name: "Less phone", emoji: "📵", goal: 120, unit: "min", step: 15, color: .coral, kind: .flame,
+                    type: .limit),
+        HabitPreset(name: "Less sugar", emoji: "🍬", goal: 1, unit: "treats", step: 1, color: .mint, kind: .apple,
+                    type: .limit),
     ]
 }
 

@@ -58,11 +58,19 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
 
                     let content = UNMutableNotificationContent()
                     content.title = "\(habit.emoji) \(habit.kind.reminderTitle(habit: habit.name))"
-                    if d == 0 {
-                        let left = max(habit.goal - habit.amount(on: day), 0)
-                        content.body = "\(left.clean) \(habit.unitLabel(for: left)) to go today. Tap to log it."
-                    } else {
-                        content.body = "Today's goal: \(habit.goal.clean) \(habit.unitLabel(for: habit.goal)). Tap to log it."
+                    switch habit.type {
+                    case .checkIn:
+                        content.body = habit.deadlineText.map { "Check in by \($0) to keep your streak." }
+                            ?? "Tap to check in for today."
+                    case .limit:
+                        content.body = "Limit: \(habit.goal.clean) \(habit.unitLabel(for: habit.goal)) today. Tap to log what you've used."
+                    case .count:
+                        if d == 0 {
+                            let left = max(habit.goal - habit.amount(on: day), 0)
+                            content.body = "\(left.clean) \(habit.unitLabel(for: left)) to go today. Tap to log it."
+                        } else {
+                            content.body = "Today's goal: \(habit.goal.clean) \(habit.unitLabel(for: habit.goal)). Tap to log it."
+                        }
                     }
                     content.sound = .default
                     content.userInfo = ["habitID": habit.id.uuidString]

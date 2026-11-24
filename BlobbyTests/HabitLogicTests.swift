@@ -131,4 +131,68 @@ final class HabitLogicTests: XCTestCase {
         XCTAssertEqual(h.unitLabel(for: 1), "serving")
         XCTAssertEqual(h.unitLabel(for: 2), "servings")
     }
+
+    // MARK: Habit types (v0.10)
+
+    private func time(_ dayOffset: Int, _ h: Int, _ m: Int) -> Date {
+        cal.date(bySettingHour: h, minute: m, second: 0, of: day(dayOffset))!
+    }
+
+    func testCheckInMorningDeadline() {
+        let h = Habit(name: "Wake up early", emoji: "🌅", color: .sunny, goal: 1, unit: "days", step: 1,
+                      type: .checkIn, deadlineHour: 6, deadlineMinute: 30)
+        XCTAssertFalse(h.isLate(time(0, 6, 0)))
+        XCTAssertFalse(h.isLate(time(0, 6, 30)))
+        XCTAssertTrue(h.isLate(time(0, 7, 0)))
+        // morning habits never move to the previous day
+        XCTAssertTrue(cal.isDate(h.checkInDay(for: time(0, 3, 0)), inSameDayAs: day(0)))
+    }
+
+    func testCheckInBedtimeAfterMidnightCountsForLastNightAndIsLate() {
+        let h = Habit(name: "Sleep by 11", emoji: "🌙", color: .grape, goal: 1, unit: "days", step: 1,
+                      type: .checkIn, deadlineHour: 23, deadlineMinute: 0)
+        XCTAssertFalse(h.isLate(time(0, 22, 30)))
+        XCTAssertTrue(h.isLate(time(0, 23, 30)))
+        XCTAssertTrue(h.isLate(time(0, 0, 30)))
+        XCTAssertTrue(cal.isDate(h.checkInDay(for: time(0, 0, 30)), inSameDayAs: day(-1)))
+        XCTAssertTrue(cal.isDate(h.checkInDay(for: time(0, 22, 30)), inSameDayAs: day(0)))
+    }
+
+    func testLateCheckInDoesNotCountForStreak() {
+        var h = Habit(name: "Wake", emoji: "🌅", color: .sunny, goal: 1, unit: "days", step: 1,
+                      type: .checkIn, deadlineHour: 6, deadlineMinute: 30)
+        for o in [-1, -2, -3] { h.log[Habit.key(day(o))] = 1 }
+        h.lateDays = [Habit.key(day(-2))]
+        XCTAssertTrue(h.isDone(on: day(-1)))
+        XCTAssertFalse(h.isDone(on: day(-2)))
+        XCTAssertEqual(h.streak, 1)
+        XCTAssertEqual(h.progress(on: day(-2)), 1)   // still logged, buddy still filled
+    }
+
+    func testLimitJudgesFinishedDaysOnly() {
+        var h = Habit(name: "Less phone", emoji: "📵", color: .coral, goal: 120, unit: "min", step: 15,
+                      type: .limit, createdKey: Habit.key(day(-5)))
+        h.log[Habit.key(day(-1))] = 60     // under
+        h.log[Habit.key(day(-2))] = 200    // over
+        // day -3: nothing logged = stayed under
+        h.log[Habit.key(day(0))] = 30
+        XCTAssertTrue(h.isDone(on: day(-1)))
+        XCTAssertFalse(h.isDone(on: day(-2)))
+        XCTAssertTrue(h.isDone(on: day(-3)))
+        XCTAssertFalse(h.isDone(on: day(0)))       // today isn't over yet
+        XCTAssertFalse(h.isDone(on: day(-8)))      // before the habit existed
+        XCTAssertEqual(h.streak, 1)
+        XCTAssertTrue(h.goodToday)
+        XCTAssertEqual(h.progress(), 0.75, accuracy: 0.001)   // buddy drains as the limit is used
+        h.log[Habit.key(day(0))] = 150
+        XCTAssertTrue(h.isOver())
+        XCTAssertFalse(h.goodToday)
+    }
+
+    func testOldSavedHabitsDecodeAsCountType() throws {
+        let json = #"[{"id":"7B0E2B1C-5A55-4C55-9D0B-2D8A2D9C1A11","name":"Water","goal":2000,"step":250,"log":{}}]"#
+        let decoded = try JSONDecoder().decode([Habit].self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.first?.type, .count)
+        XCTAssertNil(decoded.first?.deadlineHour)
+    }
 }

@@ -411,7 +411,7 @@ struct HabitActionMenu: View {
                         Text(habit.name)
                             .font(.cartoon(20))
                             .foregroundStyle(Ink.text)
-                        Text(habit.isPaused ? "Paused" : "\(habit.amount().clean) / \(habit.goal.clean) \(habit.unit) today")
+                        Text(habit.isPaused ? "Paused" : habit.statusText())
                             .font(.cartoon(13, .semibold))
                             .foregroundStyle(Ink.text.opacity(0.55))
                     }

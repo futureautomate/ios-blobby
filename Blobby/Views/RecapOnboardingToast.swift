@@ -575,7 +575,7 @@ struct OnboardingView: View {
                             Text("\(preset.emoji)  \(preset.name)")
                                 .font(.cartoon(17))
                             Spacer()
-                            Text("\(preset.goal.clean) \(preset.unit)")
+                            Text(preset.summary)
                                 .font(.cartoon(13, .bold))
                                 .opacity(0.6)
                         }
@@ -634,7 +634,8 @@ struct OnboardingView: View {
         if let p = picked {
             let habit = Habit(name: p.name, emoji: p.emoji, color: p.color, kind: p.kind,
                               goal: p.goal, unit: p.unit, step: p.step,
-                              reminderHour: remind ? 18 : nil, reminderMinute: remind ? 0 : nil)
+                              reminderHour: remind ? 18 : nil, reminderMinute: remind ? 0 : nil,
+                              type: p.type, deadlineHour: p.deadline?.0, deadlineMinute: p.deadline?.1)
             store.add(habit)
             if remind {
                 Task { _ = await Reminders.shared.requestPermission() }
