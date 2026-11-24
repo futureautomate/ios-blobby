@@ -1,12 +1,258 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Blobby — habit buddies</title><meta name="description" content="Blobby is a cartoon habit tracker for iPhone. Your habits live only on your phone."><link rel="stylesheet" href="style.css"></head>
-<body><main>
-<nav><a href="./">Blobby</a><a href="privacy.html">Privacy</a><a href="support.html">Support</a></nav>
-<h1>Blobby 💧</h1>
-<p class="pill">Habit buddies for iPhone</p>
-<div class="card">
-<p>Pick a habit, pick a buddy, and fill them up a little every day. Drink water, walk, read, meditate — each habit gets its own cartoon character that grows, levels up and celebrates with you.</p>
-<p><b>No account. No ads. No tracking.</b> Your habits stay on your phone.</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blobby — habit buddies for iPhone</title>
+<meta name="description" content="Blobby is a cartoon habit tracker for iPhone. Every habit gets a buddy that fills up, levels up and cheers you on. No account, no ads — your habits stay on your phone.">
+<meta property="og:title" content="Blobby — habit buddies for iPhone">
+<meta property="og:description" content="Tiny habits, big cheers. A cartoon habit tracker where your data never leaves your phone.">
+<meta property="og:image" content="https://futureautomate.github.io/ios-blobby/img/2-home.jpg">
+<link rel="icon" href="favicon.png">
+<style>
+:root{
+  --ink:#212133; --paper:#FFFAF0; --card:#fff;
+  --ocean:#4094FA; --ocean-l:#E0F0FF; --mint:#38CC9E; --mint-l:#DEFAED;
+  --sun:#FFC233; --sun-l:#FFF5D6; --coral:#FF756B; --coral-l:#FFE8E6; --grape:#9E75F5; --grape-l:#F0E8FF;
+  --night:#1B1733; --plum:#2B2550; --cream:#FFF3DC;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:18px/1.6 ui-rounded,"SF Pro Rounded",-apple-system,"Nunito","Segoe UI",system-ui,sans-serif;overflow-x:hidden}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+h1,h2,h3{font-weight:900;line-height:1.1;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(44px,7vw,76px)}
+h2{font-size:clamp(30px,4.4vw,46px)}
+h3{font-size:23px}
+p{margin:.6em 0}
+.muted{opacity:.65}
+
+/* nav */
+nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+nav .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:22px;text-decoration:none}
+nav .brand img{width:40px;height:40px;border-radius:11px;border:2.5px solid var(--ink)}
+nav .links a{margin-left:20px;font-weight:800;text-decoration:none;opacity:.75}
+nav .links a:hover{opacity:1}
+
+/* cartoon bits */
+.card{background:var(--card);border:3px solid var(--ink);border-radius:26px;box-shadow:0 6px 0 var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:6px;background:#fff;border:2.5px solid var(--ink);border-radius:99px;
+  padding:6px 14px;font-weight:800;font-size:15px;box-shadow:0 3px 0 var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:10px;background:var(--ink);color:#fff;border-radius:18px;padding:14px 22px;
+  font-weight:900;text-decoration:none;border:3px solid var(--ink);box-shadow:0 5px 0 #000;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn small{display:block;font-weight:700;font-size:12px;opacity:.75;line-height:1}
+.btn.ghost{background:#fff;color:var(--ink);box-shadow:0 5px 0 var(--ink)}
+
+/* phone frame */
+.phone{width:min(260px,62vw);aspect-ratio:1206/2622;border-radius:42px;border:9px solid var(--ink);
+  background:var(--ink);overflow:hidden;box-shadow:0 10px 0 rgba(33,33,51,.9),0 26px 50px rgba(33,33,51,.25);flex:none}
+.phone img,.phone video{width:100%;height:100%;object-fit:cover;display:block}
+
+/* hero */
+.hero{position:relative;padding:30px 0 90px;overflow:hidden}
+.hero .wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+.hero .tag{color:var(--ocean);font-weight:900;font-size:20px;margin-bottom:10px}
+.hero p.lead{font-size:21px;max-width:30ch}
+.hero .pills{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 28px}
+.stack{position:relative;height:600px}
+.stack .phone{position:absolute}
+.stack .p1{left:6%;top:10px;transform:rotate(-6deg);z-index:2}
+.stack .p2{right:4%;top:60px;transform:rotate(6deg)}
+.bubble{position:absolute;border-radius:50%;opacity:.55;z-index:0}
+
+/* sections */
+section{padding:80px 0}
+.center{text-align:center}
+.kicker{display:inline-block;font-weight:900;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 12px;border-radius:99px;border:2.5px solid var(--ink);margin-bottom:14px}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.buddies{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.buddies span{font-size:15px;font-weight:800;padding:8px 14px;border-radius:16px;border:2.5px solid var(--ink)}
+
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:44px}
+.feature{padding:18px 18px 22px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.feature .phone{width:100%;border-width:7px;border-radius:30px;box-shadow:none;margin-bottom:16px}
+.feature h3{font-size:20px;margin-bottom:4px}
+.feature p{font-size:15.5px;margin:0;opacity:.75}
+
+.night{background:var(--night);color:var(--cream);position:relative;overflow:hidden}
+.night .kicker{border-color:var(--cream)}
+.night .phones{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;margin-top:40px}
+.night .phone{border-color:#0C0A1A;background:#0C0A1A;box-shadow:0 10px 0 #0C0A1A,0 26px 60px rgba(0,0,0,.4)}
+.star{position:absolute;color:#FFE08A;animation:tw 3s ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.25}50%{opacity:.95}}
+
+.privacy .card{padding:34px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;background:var(--mint-l)}
+.privacy ul{margin:10px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px}
+.privacy li{font-weight:800}
+.privacy li::before{content:"✓ ";color:#0D8061}
+.shield{font-size:84px;line-height:1}
+
+.cta{text-align:center;padding:90px 0}
+.cta .icon{width:120px;height:120px;border-radius:30px;border:3.5px solid var(--ink);box-shadow:0 7px 0 var(--ink)}
+
+footer{padding:30px 0 50px;text-align:center;font-size:15px}
+footer a{margin:0 10px;font-weight:800}
+
+@media (max-width:900px){
+  .hero .wrap,.split{grid-template-columns:1fr}
+  .stack{height:520px;max-width:440px;margin:0 auto;width:100%}
+  .grid{grid-template-columns:1fr 1fr}
+  .split .media{order:-1;display:flex;justify-content:center}
+  .privacy .card{grid-template-columns:1fr;text-align:center}
+  .privacy ul{grid-template-columns:1fr;text-align:left;max-width:320px;margin:10px auto 0}
+}
+@media (max-width:520px){
+  .grid{gap:14px}
+  .feature{padding:10px 10px 14px}
+  .feature h3{font-size:16px}
+  .feature p{font-size:13px}
+  .feature .phone{border-width:5px;border-radius:20px}
+  .stack{height:440px}
+  .stack .phone{width:200px}
+  nav .links a:not(:last-child){display:none}
+}
+@media (prefers-reduced-motion:reduce){.star{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <a class="brand" href="./"><img src="img/icon.png" alt="">Blobby</a>
+    <div class="links"><a href="#buddies">Buddies</a><a href="#features">Features</a><a href="privacy.html">Privacy</a><a href="support.html">Support</a></div>
+  </nav>
 </div>
-<p class="muted">Coming to the App Store.</p>
-</main></body></html>
+
+<header class="hero">
+  <span class="bubble" style="width:340px;height:340px;background:var(--sun-l);left:-120px;top:60px"></span>
+  <span class="bubble" style="width:220px;height:220px;background:var(--ocean-l);right:-60px;top:20px"></span>
+  <div class="wrap" style="position:relative;z-index:1">
+    <div>
+      <div class="tag">Habit buddies for iPhone</div>
+      <h1>Tiny habits.<br>Big cheers.</h1>
+      <p class="lead">Every habit gets a cartoon buddy. Drink water and Droplet fills up. Read and your sprout grows. Keep a streak and they level up, put on hats and throw you a party.</p>
+      <div class="pills">
+        <span class="pill">🔒 No account</span>
+        <span class="pill">🚫 No ads</span>
+        <span class="pill">📱 Stays on your phone</span>
+        <span class="pill">🌙 Day &amp; night</span>
+      </div>
+      <a class="btn" href="#get"><span style="font-size:24px">📲</span><span><small>Coming soon on the</small>App Store</span></a>
+    </div>
+    <div class="stack" aria-label="Blobby screenshots">
+      <div class="phone p1"><img src="img/2-home.jpg" alt="Today screen with habit buddies for water, walking, reading, meditation and fruit"></div>
+      <div class="phone p2"><img src="img/n1-home.jpg" alt="The same screen in Blobby's night theme"></div>
+    </div>
+  </div>
+</header>
+
+<section id="buddies" style="background:var(--ocean-l);border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)">
+  <div class="wrap split">
+    <div>
+      <span class="kicker" style="background:#fff">Meet the buddies</span>
+      <h2>Tap. Splash. Smile.</h2>
+      <p>Log a glass of water and watch it drop in. Each buddy fills up as you get closer to your goal, reacts when you tap, and celebrates with confetti when you're done for the day.</p>
+      <p>Pick the buddy that fits each habit, or let Blobby choose:</p>
+      <div class="buddies">
+        <span style="background:var(--ocean-l)">💧 Droplet</span>
+        <span style="background:var(--coral-l)">🍎 Apple</span>
+        <span style="background:var(--mint-l)">🌱 Sprout</span>
+        <span style="background:var(--sun-l)">☀️ Sunny</span>
+        <span style="background:var(--coral-l)">🔥 Flame</span>
+        <span style="background:var(--grape-l)">🫧 Blobby</span>
+      </div>
+    </div>
+    <div class="media" style="display:flex;justify-content:center">
+      <div class="phone">
+        <video src="img/logging.mp4" poster="img/logging-poster.jpg" autoplay muted loop playsinline aria-label="Video of Droplet filling up as water is logged"></video>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap center">
+    <span class="kicker" style="background:var(--sun)">Everything you need</span>
+    <h2>Simple enough for every day</h2>
+    <div class="grid">
+      <div class="card feature">
+        <div class="phone"><img src="img/15-levelup.jpg" alt="Level-up celebration with a new accessory"></div>
+        <h3>Level up</h3>
+        <p>Streaks unlock party hats, sunglasses, bow ties and crowns.</p>
+      </div>
+      <div class="card feature">
+        <div class="phone"><img src="img/8-add.jpg" alt="Adding a new habit"></div>
+        <h3>Add in seconds</h3>
+        <p>Quick picks, your own goal, rest days and a gentle reminder.</p>
+      </div>
+      <div class="card feature">
+        <div class="phone"><img src="img/r2-month.jpg" alt="Month report with a calendar of all habits"></div>
+        <h3>See your month</h3>
+        <p>Week and month reports for all habits, back to day one.</p>
+      </div>
+      <div class="card feature">
+        <div class="phone"><img src="img/20-share.jpg" alt="Shareable weekly progress card"></div>
+        <h3>Share your week</h3>
+        <p>Turn your week into a card for WhatsApp or Instagram.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="night">
+  <span class="star" style="left:8%;top:14%;font-size:22px">✦</span>
+  <span class="star" style="left:88%;top:22%;font-size:16px;animation-delay:.8s">✦</span>
+  <span class="star" style="left:20%;top:78%;font-size:14px;animation-delay:1.6s">✦</span>
+  <span class="star" style="left:76%;top:84%;font-size:20px;animation-delay:2.2s">✦</span>
+  <span class="star" style="left:50%;top:8%;font-size:12px;animation-delay:1.1s">✦</span>
+  <div class="wrap center">
+    <span class="kicker">Night theme</span>
+    <h2>Lights out? Blobby too.</h2>
+    <p class="muted" style="max-width:52ch;margin:12px auto 0">A night sky designed from scratch, not just inverted colours. Follows your iPhone automatically, or pick Light or Night yourself.</p>
+    <div class="phones">
+      <div class="phone"><img src="img/n2-drop.jpg" alt="Water habit screen in the night theme"></div>
+      <div class="phone"><img src="img/r3-month-night.jpg" alt="Month report in the night theme"></div>
+    </div>
+  </div>
+</section>
+
+<section class="privacy">
+  <div class="wrap">
+    <div class="card">
+      <div class="shield">🛡️</div>
+      <div>
+        <h2 style="font-size:clamp(26px,3.6vw,36px)">Your habits never leave your phone</h2>
+        <p>No sign-up, no cloud, no tracking. Blobby collects nothing at all.</p>
+        <ul>
+          <li>No account or email</li>
+          <li>No analytics or ads</li>
+          <li>Reminders scheduled on-device</li>
+          <li>Backup to a file you control</li>
+        </ul>
+        <p style="margin-top:14px"><a href="privacy.html" style="font-weight:900">Read the privacy policy →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta" id="get">
+  <div class="wrap">
+    <img class="icon" src="img/icon.png" alt="Blobby app icon">
+    <h2 style="margin-top:22px">Coming soon to the App Store</h2>
+    <p class="muted">Free to download. No subscription.</p>
+    <p style="margin-top:22px"><a class="btn ghost" href="support.html">Questions? Visit support</a></p>
+  </div>
+</section>
+
+<footer class="muted">
+  <a href="privacy.html">Privacy</a><a href="support.html">Support</a>
+  <p>© 2026 Blobby</p>
+</footer>
+
+</body>
+</html>
