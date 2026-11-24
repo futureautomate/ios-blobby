@@ -96,6 +96,8 @@ jobs:
             sleep 5
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          shot 22-menu     -demo sample -menu 1
+          shot 23-more     -demo sample -open 0 -more
           shot 20-share    -demo sample -share
           shot 21-paused   -demo sample -open 5
           shot 10-edit     -demo sample -edit

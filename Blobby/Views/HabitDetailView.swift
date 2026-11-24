@@ -13,6 +13,9 @@ struct HabitDetailView: View {
     @State private var successTick = 0
     @State private var showingEdit = false
     @State private var levelUp: Accessory?
+    @State private var showingMore = false
+    @State private var confirmDelete = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         if let habit = store.habit(habitID) {
@@ -173,6 +176,29 @@ struct HabitDetailView: View {
                                       HabitColor.mint.main, HabitColor.grape.main])
             }
 
+            if showingMore {
+                HabitActionMenu(habit: habit, items: moreItems(habit)) { showingMore = false }
+                    .zIndex(9)
+            }
+
+            if confirmDelete {
+                CartoonConfirm(
+                    title: "Delete \(habit.name)?",
+                    message: "\(habit.kind.title) and all of this habit's history will be gone.",
+                    color: habit.color, kind: habit.kind, sticker: habit.emoji,
+                    confirmTitle: "Delete",
+                    onCancel: { withAnimation(.spring) { confirmDelete = false } },
+                    onConfirm: {
+                        SoundFX.shared.play(.poof)
+                        confirmDelete = false
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            withAnimation(.spring) { store.delete(habitID) }
+                        }
+                    })
+                .zIndex(11)
+            }
+
             if let acc = levelUp {
                 LevelUpPopup(habit: habit, accessory: acc) {
                     withAnimation(.spring) { levelUp = nil }
@@ -187,15 +213,15 @@ struct HabitDetailView: View {
                 ShareCardButton(title: "\(habit.name) on Blobby", card: HabitShareCard(habit: habit), compact: true)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingEdit = true } label: {
-                    Image(systemName: "pencil")
+                Button { showingMore = true } label: {
+                    Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .black))
                         .foregroundStyle(Ink.color)
                         .frame(width: 38, height: 38)
                         .background(Circle().fill(Color.white))
                         .overlay(Circle().stroke(Ink.color, lineWidth: 2.5))
                 }
-                .accessibilityLabel("Edit habit")
+                .accessibilityLabel("More actions")
             }
         }
         .sheet(isPresented: $showingEdit) {
@@ -211,6 +237,7 @@ struct HabitDetailView: View {
             if LaunchOptions.celebrate {
                 startCelebration(loop: true)
             }
+            if LaunchOptions.showMore { showingMore = true }
             if LaunchOptions.showLevelUp, let acc = store.habit(habitID)?.unlocked.last {
                 levelUp = acc
             }
@@ -224,6 +251,23 @@ struct HabitDetailView: View {
     }
 
     // MARK: - Actions
+
+    /// Same menu as long-press on Today, minus Log/Arrange (Log is the big button here).
+    private func moreItems(_ habit: Habit) -> [HabitActionMenu.Item] {
+        [
+            .init(icon: "✏️", title: "Edit", subtitle: "Name, goal, buddy, repeat days, reminder") {
+                showingEdit = true
+            },
+            .init(icon: habit.isPaused ? "▶️" : "⏸️",
+                  title: habit.isPaused ? "Resume" : "Pause",
+                  subtitle: habit.isPaused ? "Back to Today" : "Hide from Today, stop reminders, keep the streak") {
+                withAnimation(.spring) { store.setPaused(habitID, !habit.isPaused) }
+            },
+            .init(icon: "🗑️", title: "Delete", destructive: true) {
+                withAnimation(.spring) { confirmDelete = true }
+            },
+        ]
+    }
 
     private func addStep(_ habit: Habit) {
         drops.append(UUID())

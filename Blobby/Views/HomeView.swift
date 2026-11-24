@@ -20,6 +20,8 @@ struct HomeView: View {
     @State private var dragging: UUID?
     @State private var showPaused = false
     @State private var showingShare = false
+    @State private var menuFor: Habit?
+    @AppStorage("tipLongPressSeen") private var tipSeen = false
 
     private var active: [Habit] { store.habits.filter { !$0.isPaused } }
     private var paused: [Habit] { store.habits.filter { $0.isPaused } }
@@ -42,6 +44,25 @@ struct HomeView: View {
                             EmptyStateView { showingAdd = true }
                                 .padding(.top, 30)
                         } else {
+                            if !tipSeen && !editing {
+                                HStack(spacing: 8) {
+                                    Text("💡 Tip: press and hold a habit for more options")
+                                        .font(.cartoon(13, .bold))
+                                        .foregroundStyle(Ink.color.opacity(0.7))
+                                    Spacer()
+                                    Button { withAnimation(.spring) { tipSeen = true } } label: {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 11, weight: .black))
+                                            .foregroundStyle(Ink.color.opacity(0.5))
+                                    }
+                                    .accessibilityLabel("Dismiss tip")
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(Capsule().fill(HabitColor.sunny.light))
+                                .overlay(Capsule().stroke(Ink.color.opacity(0.2), lineWidth: 1.5))
+                                .transition(.opacity)
+                            }
                             if editing {
                                 Text("Drag to reorder · tap ✕ to delete")
                                     .font(.cartoon(14, .bold))
@@ -68,7 +89,9 @@ struct HomeView: View {
                                     }
                                 )
                                 .simultaneousGesture(
-                                    LongPressGesture(minimumDuration: 0.45).onEnded { _ in startEditing() }
+                                    LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                                        if !editing { openMenu(habit) }
+                                    }
                                 )
                                 .modifier(ReorderModifier(habit: habit, enabled: editing,
                                                           dragging: $dragging, store: store))
@@ -111,6 +134,14 @@ struct HomeView: View {
         .sheet(isPresented: $showingAdd) {
             AddHabitView()
                 .environmentObject(store)
+        }
+        .overlay {
+            if let habit = menuFor {
+                HabitActionMenu(habit: habit, items: menuItems(for: habit)) {
+                    menuFor = nil
+                }
+                .transition(.opacity)
+            }
         }
         .overlay {
             if let lu = levelUp {
@@ -161,6 +192,7 @@ struct HomeView: View {
             if LaunchOptions.showRecap { showingRecap = true }
             if LaunchOptions.showOnboarding { showingOnboarding = true }
             if LaunchOptions.showShare { showingShare = true; showPaused = true }
+            if let i = LaunchOptions.menuIndex, store.habits.indices.contains(i) { menuFor = store.habits[i] }
             if LaunchOptions.editing { showPaused = true }
             if LaunchOptions.showToast, let first = store.habits.first {
                 store.logStep(first.id)
@@ -301,6 +333,41 @@ struct HomeView: View {
                 .background(Circle().fill(Ink.color).offset(y: 4))
         }
         .buttonStyle(BouncyButtonStyle())
+    }
+
+    // MARK: - Long-press menu
+
+    private func openMenu(_ habit: Habit) {
+        editTick += 1                    // haptic
+        withAnimation(.spring) { tipSeen = true }
+        menuFor = habit
+    }
+
+    private func menuItems(for habit: Habit) -> [HabitActionMenu.Item] {
+        var items: [HabitActionMenu.Item] = []
+        if !habit.isPaused {
+            items.append(.init(icon: habit.emoji, title: "Log +\(habit.step.clean) \(habit.unitLabel(for: habit.step))") {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { store.logStep(habit.id) }
+                SoundFX.shared.play(.pop, pitch: habit.kind.popPitch)
+            })
+        }
+        items.append(.init(icon: "✏️", title: "Edit", subtitle: "Name, goal, buddy, repeat days, reminder") {
+            editingHabit = store.habit(habit.id)
+        })
+        items.append(.init(icon: habit.isPaused ? "▶️" : "⏸️",
+                           title: habit.isPaused ? "Resume" : "Pause",
+                           subtitle: habit.isPaused ? "Back to Today" : "Hide from Today, stop reminders, keep the streak") {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                store.setPaused(habit.id, !habit.isPaused)
+            }
+        })
+        items.append(.init(icon: "↕️", title: "Arrange habits", subtitle: "Drag cards into your own order") {
+            startEditing()
+        })
+        items.append(.init(icon: "🗑️", title: "Delete", destructive: true) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { pendingDelete = habit }
+        })
+        return items
     }
 
     // MARK: - Delete flow

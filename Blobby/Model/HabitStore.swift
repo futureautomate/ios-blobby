@@ -181,4 +181,6 @@ enum LaunchOptions {
     static var showOnboarding: Bool { args.contains("-onboarding") }
     static var showToast: Bool { args.contains("-toast") }
     static var showShare: Bool { args.contains("-share") }
+    static var menuIndex: Int? { value("-menu").flatMap { Int($0) } }
+    static var showMore: Bool { args.contains("-more") }
 }

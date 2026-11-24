@@ -245,3 +245,96 @@ struct SettingsView: View {
         .buttonStyle(BouncyButtonStyle())
     }
 }
+
+// MARK: - Habit action menu
+
+/// Cartoon action menu for one habit. Opened by long-pressing a card on Today,
+/// or from the "•••" button on the habit's screen. Most frequent actions first
+/// (Apple HIG: context menus hold the commands people most likely need, frequent first).
+/// It slides up from the bottom, where it's easiest to reach with a thumb.
+struct HabitActionMenu: View {
+    struct Item: Identifiable {
+        let id = UUID()
+        let icon: String
+        let title: String
+        var subtitle: String? = nil
+        var destructive = false
+        let action: () -> Void
+    }
+
+    let habit: Habit
+    let items: [Item]
+    let onClose: () -> Void
+
+    @State private var shown = false
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Ink.color.opacity(shown ? 0.35 : 0)
+                .ignoresSafeArea()
+                .onTapGesture { close() }
+
+            VStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 58,
+                               sticker: habit.emoji, accessories: habit.unlocked, sleepy: habit.isPaused)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(habit.name)
+                            .font(.cartoon(20))
+                            .foregroundStyle(Ink.color)
+                        Text(habit.isPaused ? "Paused" : "\(habit.amount().clean) / \(habit.goal.clean) \(habit.unit) today")
+                            .font(.cartoon(13, .semibold))
+                            .foregroundStyle(Ink.color.opacity(0.55))
+                    }
+                    Spacer()
+                }
+                .padding(.bottom, 4)
+
+                ForEach(items) { item in
+                    Button {
+                        close()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { item.action() }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(item.icon)
+                                .font(.system(size: 22))
+                                .frame(width: 30)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(item.title)
+                                    .font(.cartoon(17))
+                                    .foregroundStyle(item.destructive ? HabitColor.coral.deep : Ink.color)
+                                if let sub = item.subtitle {
+                                    Text(sub)
+                                        .font(.cartoon(12, .semibold))
+                                        .foregroundStyle(Ink.color.opacity(0.5))
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 52)
+                        .contentShape(Rectangle())
+                    }
+                    .cartoonCard(radius: 16, fill: item.destructive ? HabitColor.coral.light : .white)
+                    .buttonStyle(BouncyButtonStyle())
+                    .accessibilityLabel(item.title)
+                    .accessibilityHint(item.subtitle ?? "")
+                }
+            }
+            .padding(18)
+            .padding(.bottom, 8)
+            .cartoonCard(radius: 30, fill: Paper.color)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            .offset(y: shown ? 0 : 500)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) { shown = true }
+        }
+    }
+
+    private func close() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { shown = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { onClose() }
+    }
+}
