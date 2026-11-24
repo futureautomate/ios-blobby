@@ -12,6 +12,15 @@ Animated cartoon habit tracker (SwiftUI, iPhone). Built from Windows with the pl
 `-settings` · `-history` · `-levelup` · `-recap` · `-month` · `-onboarding` · `-page <n>` · `-toast` · `-share` ·
 `-menu <i>` · `-more` · `-night` · `-askName`
 
+## Store and website
+
+- Website: https://futureautomate.github.io/ios-blobby/ (`docs/`), privacy: `/privacy.html`, support: `/support.html`
+- Store screenshots: Actions → "App Store screenshots" (manual) → `store-screenshots` branch (6.9")
+- Pricing decided: **free download + one-time "Blobby Plus" $3.99** (≈ ₹399 tier), launch price $1.99.
+  Free: 3 habits and all core features (accessibility never locked). Plus: unlimited habits, all buddies/accessories,
+  share-card styles; later widgets/Watch/iCloud, which justify raising it to $4.99.
+- Account: individual Apple Developer account (seller = legal name). Steps in `../APP-STORE-PUBLISHING-INDIA.md`.
+
 ## Parked
 
 - **Home-screen widget**: code in `BlobbyWidget/` + `Blobby/Shared/`. Parked because Sideloadly strips App Groups.
@@ -34,3 +43,4 @@ Animated cartoon habit tracker (SwiftUI, iPhone). Built from Windows with the pl
 - v0.9.0: Night theme (Auto/Light/Night) + accessibility (Dynamic Type, VoiceOver, Reduce Motion).
 - v0.9.1: theme switch applies instantly (window style).
 - v0.9.2–v0.9.3: Reports (week/month, browse back), About you, backup export/import. ✅ Verified on iPhone.
+- v0.9.4: privacy manifest, no-encryption flag, privacy/support links in Settings; website + store-screenshot workflow.
