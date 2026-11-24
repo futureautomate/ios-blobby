@@ -114,7 +114,10 @@ footer a{margin:0 10px;font-weight:800}
   .feature .phone{border-width:5px;border-radius:20px}
   .stack{height:440px}
   .stack .phone{width:200px}
-  nav .links a:not(:last-child){display:none}
+  nav{flex-wrap:wrap;gap:12px}
+  nav .links{width:100%;display:flex;gap:8px}
+  nav .links a{margin:0;flex:1;text-align:center;font-size:14px;padding:6px 0;border:2px solid var(--ink);
+    border-radius:99px;background:#fff;box-shadow:0 2px 0 var(--ink);opacity:1}
 }
 @media (prefers-reduced-motion:reduce){.star{animation:none}}
 </style>
