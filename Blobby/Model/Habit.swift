@@ -14,10 +14,14 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     var reminderMinute: Int?
     /// Weekdays the habit runs on (Calendar weekday: 1 = Sunday … 7 = Saturday). nil = every day.
     var days: [Int]?
+    /// Paused habits are hidden from Today, send no reminders and keep their streak.
+    var pausedSince: String?        // day key the pause started, nil = active
+    var skipDays: [String]          // day keys from past pauses (treated like rest days)
 
     init(id: UUID = UUID(), name: String, emoji: String, color: HabitColor, kind: MascotKind? = nil,
          goal: Double, unit: String, step: Double, log: [String: Double] = [:],
-         reminderHour: Int? = nil, reminderMinute: Int? = nil, days: [Int]? = nil) {
+         reminderHour: Int? = nil, reminderMinute: Int? = nil, days: [Int]? = nil,
+         pausedSince: String? = nil, skipDays: [String] = []) {
         self.id = id
         self.name = name
         self.emoji = emoji
@@ -30,10 +34,13 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         self.reminderHour = reminderHour
         self.reminderMinute = reminderMinute
         self.days = days
+        self.pausedSince = pausedSince
+        self.skipDays = skipDays
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, emoji, color, kind, goal, unit, step, log, reminderHour, reminderMinute, days
+        case pausedSince, skipDays
     }
 
     /// Tolerant decoding: habits saved by v0.1 have no `kind`, so we pick one from the emoji/name.
@@ -52,12 +59,42 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         reminderHour = try c.decodeIfPresent(Int.self, forKey: .reminderHour)
         reminderMinute = try c.decodeIfPresent(Int.self, forKey: .reminderMinute)
         days = try c.decodeIfPresent([Int].self, forKey: .days)
+        pausedSince = try c.decodeIfPresent(String.self, forKey: .pausedSince)
+        skipDays = try c.decodeIfPresent([String].self, forKey: .skipDays) ?? []
+    }
+
+    // MARK: - Pause
+
+    var isPaused: Bool { pausedSince != nil }
+
+    mutating func pause(on date: Date = Date()) {
+        guard pausedSince == nil else { return }
+        pausedSince = Habit.key(date)
+    }
+
+    /// Resuming turns every paused day (start ... yesterday) into a skip day, so the streak survives.
+    mutating func resume(on date: Date = Date()) {
+        guard let startKey = pausedSince, let start = Habit.date(fromKey: startKey) else { return }
+        let cal = Calendar.current
+        var day = cal.startOfDay(for: start)
+        let today = cal.startOfDay(for: date)
+        var count = 0
+        while day < today && count < 3650 {
+            let k = Habit.key(day)
+            if !skipDays.contains(k) { skipDays.append(k) }
+            day = cal.date(byAdding: .day, value: 1, to: day) ?? today
+            count += 1
+        }
+        pausedSince = nil
     }
 
     // MARK: - Schedule
 
     /// Does this habit run on that day? (Rest days don't break streaks.)
     func isScheduled(on date: Date = Date()) -> Bool {
+        let key = Habit.key(date)
+        if skipDays.contains(key) { return false }
+        if let start = pausedSince, key >= start { return false }   // keys sort chronologically
         guard let days = days, !days.isEmpty, days.count < 7 else { return true }
         return days.contains(Calendar.current.component(.weekday, from: date))
     }

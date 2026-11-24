@@ -22,12 +22,15 @@ struct BlobMascot: View {
     var accessories: [Accessory] = []
     /// false = draw one still frame (Home-screen widgets can't animate or keep @State).
     var animated: Bool = true
+    /// Closed eyes + "z" (paused habits).
+    var sleepy: Bool = false
 
     /// Liquid / growth level actually drawn.
     private var shownFill: Double { animated ? fill : progress }
 
     private var gear: FaceGear {
         FaceGear(sad: sad,
+                 sleepy: sleepy,
                  glasses: accessories.contains(.sunglasses),
                  bowTie: accessories.contains(.bowTie))
     }
@@ -439,7 +442,7 @@ struct BlobFace: View {
         let blink = t.truncatingRemainder(dividingBy: 3.7) < 0.13
         let look = CGFloat(sin(t * 0.8)) * size * 0.012
         let done = progress >= 0.999
-        let happy = (celebrate || done) && !sad
+        let happy = (celebrate || done) && !sad && !gear.sleepy
 
         VStack(spacing: size * 0.035) {
             HStack(spacing: size * 0.15) {
@@ -461,6 +464,10 @@ struct BlobFace: View {
                         )
                         .clipShape(OpenMouthShape())
                         .frame(width: size * 0.26, height: size * 0.09)
+                } else if gear.sleepy {
+                    Ellipse()
+                        .stroke(Ink.color, lineWidth: max(1.5, size * 0.022))
+                        .frame(width: size * 0.07, height: size * 0.05)
                 } else if sad {
                     MouthShape(curve: -0.6)
                         .stroke(Ink.color, style: StrokeStyle(lineWidth: max(2, size * 0.028), lineCap: .round))
@@ -477,6 +484,15 @@ struct BlobFace: View {
         .overlay(cheeks.opacity(!sad && (progress > 0.45 || happy) ? 1 : 0))
         .overlay(alignment: .topLeading) {
             if sad { tear }
+        }
+        .overlay(alignment: .topTrailing) {
+            if gear.sleepy {
+                Text("z")
+                    .font(.system(size: max(8, size * 0.16), weight: .heavy, design: .rounded))
+                    .foregroundStyle(Ink.color.opacity(0.6))
+                    .offset(x: size * 0.16, y: -size * 0.14 - CGFloat((t * 0.5).truncatingRemainder(dividingBy: 1)) * size * 0.08)
+                    .opacity(1 - (t * 0.5).truncatingRemainder(dividingBy: 1) * 0.7)
+            }
         }
         .overlay(alignment: .bottom) {
             if gear.bowTie {
@@ -495,7 +511,13 @@ struct BlobFace: View {
     private func eye(blink: Bool, look: CGFloat, happy: Bool) -> some View {
         let w = size * 0.12
         let h = size * 0.16
-        if happy {
+        if gear.sleepy {
+            // Closed, relaxed eyes.
+            MouthShape(curve: 0.7)
+                .stroke(Ink.color, style: StrokeStyle(lineWidth: max(2, size * 0.028), lineCap: .round))
+                .frame(width: w, height: h * 0.4)
+                .frame(width: w, height: h)
+        } else if happy {
             // Happy "^" eyes.
             MouthShape(curve: -0.9)
                 .stroke(Ink.color, style: StrokeStyle(lineWidth: max(2, size * 0.03), lineCap: .round))
@@ -585,6 +607,7 @@ struct StickerBadge: View {
 /// Face options shared by every character.
 struct FaceGear {
     var sad = false
+    var sleepy = false
     var glasses = false
     var bowTie = false
 }

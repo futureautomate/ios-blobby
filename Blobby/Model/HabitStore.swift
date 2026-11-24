@@ -44,6 +44,24 @@ final class HabitStore: ObservableObject {
         if lastLog?.id == event.id { lastLog = nil }
     }
 
+    func setPaused(_ id: UUID, _ paused: Bool) {
+        guard let i = habits.firstIndex(where: { $0.id == id }) else { return }
+        if paused { habits[i].pause() } else { habits[i].resume() }
+        save()
+    }
+
+    /// Drag-to-reorder: move `id` to where `target` currently is.
+    func move(_ id: UUID, before target: UUID) {
+        guard id != target,
+              let from = habits.firstIndex(where: { $0.id == id }),
+              let to = habits.firstIndex(where: { $0.id == target }) else { return }
+        let item = habits.remove(at: from)
+        habits.insert(item, at: to)
+    }
+
+    /// Persist the order once the drag ends.
+    func commitOrder() { save() }
+
     /// Replace an edited habit (keeps its id and history).
     func update(_ habit: Habit) {
         guard let i = habits.firstIndex(where: { $0.id == habit.id }) else { return }
@@ -125,7 +143,9 @@ final class HabitStore: ObservableObject {
         read.log[today] = 10
         calm.log[today] = 5
         fruit.log[today] = 1
-        return [water, walk, read, calm, fruit]
+        var journal = Habit(name: "Journal", emoji: "✍️", color: .grape, kind: .blob, goal: 1, unit: "entry", step: 1)
+        journal.pause(on: cal.date(byAdding: .day, value: -3, to: Date()) ?? Date())
+        return [water, walk, read, calm, fruit, journal]
     }
 }
 
@@ -160,4 +180,5 @@ enum LaunchOptions {
     static var showRecap: Bool { args.contains("-recap") }
     static var showOnboarding: Bool { args.contains("-onboarding") }
     static var showToast: Bool { args.contains("-toast") }
+    static var showShare: Bool { args.contains("-share") }
 }

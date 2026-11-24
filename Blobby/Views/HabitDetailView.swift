@@ -33,6 +33,22 @@ struct HabitDetailView: View {
             ScrollViewReader { scroller in
             ScrollView {
                 VStack(spacing: 18) {
+                    if habit.isPaused {
+                        HStack(spacing: 10) {
+                            Text("😴 Paused: no reminders, streak kept")
+                                .font(.cartoon(14, .bold))
+                                .foregroundStyle(Ink.color.opacity(0.7))
+                            Spacer()
+                            Button("Resume") {
+                                withAnimation(.spring) { store.setPaused(habitID, false) }
+                            }
+                            .font(.cartoon(14))
+                            .foregroundStyle(habit.color.deep)
+                        }
+                        .padding(12)
+                        .cartoonCard(radius: 16, fill: Paper.color)
+                        .padding(.horizontal, 20)
+                    }
                     VStack(spacing: 6) {
                         Text(habit.name)
                             .font(.cartoon(30))
@@ -60,7 +76,7 @@ struct HabitDetailView: View {
                     ZStack {
                         BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind,
                                    size: 230, bump: bump, celebrate: celebrating, sticker: habit.emoji,
-                                   accessories: habit.unlocked)
+                                   accessories: habit.unlocked, sleepy: habit.isPaused)
                             .onTapGesture { addStep(habit) }
 
                         ForEach(drops, id: \.self) { id in
@@ -167,6 +183,9 @@ struct HabitDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareCardButton(title: "\(habit.name) on Blobby", card: HabitShareCard(habit: habit), compact: true)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingEdit = true } label: {
                     Image(systemName: "pencil")

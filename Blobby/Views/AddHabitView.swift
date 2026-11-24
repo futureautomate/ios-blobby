@@ -77,6 +77,9 @@ struct AddHabitView: View {
                     section("Repeat") { repeatSection }
                     section("Colour") { colors }
                     section("Reminder") { reminderSection }
+                    if let h = existing {
+                        pauseButton(h)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
@@ -414,6 +417,33 @@ struct AddHabitView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(selected ? Ink.color : Ink.color.opacity(0.2), lineWidth: selected ? 2.5 : 1.5))
         }
+        .buttonStyle(BouncyButtonStyle())
+    }
+
+    /// Pause keeps the habit and its streak but hides it from Today and silences reminders.
+    private func pauseButton(_ h: Habit) -> some View {
+        let paused = store.habit(h.id)?.isPaused ?? h.isPaused
+        return Button {
+            withAnimation(.spring) { store.setPaused(h.id, !paused) }
+            dismiss()
+        } label: {
+            HStack(spacing: 10) {
+                Text(paused ? "▶️" : "⏸️").font(.system(size: 22))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(paused ? "Resume this habit" : "Pause this habit")
+                        .font(.cartoon(17))
+                        .foregroundStyle(Ink.color)
+                    Text(paused ? "Back to Today, reminders on again"
+                                : "Hide it from Today and stop reminders. Your streak is kept.")
+                        .font(.cartoon(12, .semibold))
+                        .foregroundStyle(Ink.color.opacity(0.55))
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+            }
+            .padding(16)
+        }
+        .cartoonCard(radius: 22, fill: Paper.color)
         .buttonStyle(BouncyButtonStyle())
     }
 

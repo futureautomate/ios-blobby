@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct HomeView: View {
     @EnvironmentObject var store: HabitStore
@@ -16,6 +17,12 @@ struct HomeView: View {
     @State private var showingOnboarding = false
     @State private var levelUp: (habit: Habit, accessory: Accessory)?
     @AppStorage("onboarded") private var onboarded = false
+    @State private var dragging: UUID?
+    @State private var showPaused = false
+    @State private var showingShare = false
+
+    private var active: [Habit] { store.habits.filter { !$0.isPaused } }
+    private var paused: [Habit] { store.habits.filter { $0.isPaused } }
 
     /// Only habits scheduled for today count towards "x of y done".
     private var todays: [Habit] { store.habits.filter { $0.isScheduled() } }
@@ -36,12 +43,12 @@ struct HomeView: View {
                                 .padding(.top, 30)
                         } else {
                             if editing {
-                                Text("Tap ✕ to delete a habit")
+                                Text("Drag to reorder · tap ✕ to delete")
                                     .font(.cartoon(14, .bold))
                                     .foregroundStyle(Ink.color.opacity(0.55))
                                     .transition(.opacity)
                             }
-                            ForEach(store.habits) { habit in
+                            ForEach(active) { habit in
                                 HabitCard(
                                     habit: habit,
                                     editing: editing,
@@ -63,8 +70,15 @@ struct HomeView: View {
                                 .simultaneousGesture(
                                     LongPressGesture(minimumDuration: 0.45).onEnded { _ in startEditing() }
                                 )
+                                .modifier(ReorderModifier(habit: habit, enabled: editing,
+                                                          dragging: $dragging, store: store))
+                                .opacity(dragging == habit.id ? 0.4 : 1)
                                 .transition(.asymmetric(insertion: .scale.combined(with: .opacity),
                                                         removal: .opacity))
+                            }
+
+                            if !paused.isEmpty {
+                                pausedSection
                             }
                         }
                     }
@@ -106,6 +120,9 @@ struct HomeView: View {
                 .transition(.opacity)
             }
         }
+        .sheet(isPresented: $showingShare) {
+            ShareCardPreview(habits: store.habits)
+        }
         .sheet(isPresented: $showingRecap) {
             WeeklyRecapView()
                 .environmentObject(store)
@@ -143,6 +160,8 @@ struct HomeView: View {
             if LaunchOptions.showSettings { showingSettings = true }
             if LaunchOptions.showRecap { showingRecap = true }
             if LaunchOptions.showOnboarding { showingOnboarding = true }
+            if LaunchOptions.showShare { showingShare = true; showPaused = true }
+            if LaunchOptions.editing { showPaused = true }
             if LaunchOptions.showToast, let first = store.habits.first {
                 store.logStep(first.id)
             }
@@ -159,6 +178,66 @@ struct HomeView: View {
             if let i = LaunchOptions.confirmIndex, store.habits.indices.contains(i) {
                 editing = true
                 pendingDelete = store.habits[i]
+            }
+        }
+    }
+
+    // MARK: - Paused
+
+    private var pausedSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { showPaused.toggle() }
+            } label: {
+                HStack {
+                    Text("😴 Paused (\(paused.count))")
+                        .font(.cartoon(16))
+                        .foregroundStyle(Ink.color.opacity(0.6))
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundStyle(Ink.color.opacity(0.4))
+                        .rotationEffect(.degrees(showPaused ? 180 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 10)
+
+            if showPaused {
+                ForEach(paused) { habit in
+                    HStack(spacing: 12) {
+                        BlobMascot(progress: 0.4, color: habit.color, kind: habit.kind, size: 56,
+                                   sticker: habit.emoji, accessories: habit.unlocked, sleepy: true)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(habit.name)
+                                .font(.cartoon(17))
+                                .foregroundStyle(Ink.color)
+                            Text("Paused · streak kept at \(habit.streak)")
+                                .font(.cartoon(12, .semibold))
+                                .foregroundStyle(Ink.color.opacity(0.5))
+                        }
+                        Spacer()
+                        Button {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                                store.setPaused(habit.id, false)
+                            }
+                            SoundFX.shared.play(.pop, pitch: habit.kind.popPitch)
+                        } label: {
+                            Text("Resume")
+                                .font(.cartoon(14))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14)
+                                .frame(height: 36)
+                        }
+                        .cartoonCard(radius: 14, fill: habit.color.main)
+                        .buttonStyle(BouncyButtonStyle())
+                    }
+                    .padding(12)
+                    .cartoonCard(fill: Paper.color)
+                    .contentShape(Rectangle())
+                    .onTapGesture { path.append(habit.id) }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
         }
     }
@@ -186,6 +265,8 @@ struct HomeView: View {
             if editing {
                 Button {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { editing = false }
+                    dragging = nil
+                    store.commitOrder()
                 } label: {
                     Text("Done")
                         .font(.cartoon(18))
@@ -397,5 +478,48 @@ struct EmptyStateView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(24)
+    }
+}
+
+// MARK: - Drag to reorder (edit mode only)
+
+private struct ReorderModifier: ViewModifier {
+    let habit: Habit
+    let enabled: Bool
+    @Binding var dragging: UUID?
+    let store: HabitStore
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .onDrag {
+                    dragging = habit.id
+                    return NSItemProvider(object: habit.id.uuidString as NSString)
+                }
+                .onDrop(of: [UTType.text], delegate: ReorderDropDelegate(target: habit.id, dragging: $dragging, store: store))
+        } else {
+            content
+        }
+    }
+}
+
+private struct ReorderDropDelegate: DropDelegate {
+    let target: UUID
+    @Binding var dragging: UUID?
+    let store: HabitStore
+
+    func dropEntered(info: DropInfo) {
+        guard let id = dragging, id != target else { return }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            store.move(id, before: target)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        store.commitOrder()
+        return true
     }
 }

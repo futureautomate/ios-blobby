@@ -7,7 +7,7 @@ options:
     iOS: "17.0"
 settings:
   base:
-    MARKETING_VERSION: "0.7.0"
+    MARKETING_VERSION: "0.8.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
 targets:
@@ -15,7 +15,8 @@ targets:
     type: application
     platform: iOS
     sources: [Blobby]
-    scheme: {}
+    scheme:
+      testTargets: [BlobbyTests]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.futureautomate.blobby
@@ -26,6 +27,17 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         TARGETED_DEVICE_FAMILY: "1"   # iPhone only for now; "1,2" adds iPad
+
+  BlobbyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [BlobbyTests]
+    dependencies:
+      - target: Blobby
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.futureautomate.blobby.tests
 
 # Widget extension parked: Sideloadly + a free Apple ID strips App Groups, so the widget
 # can't read the app's data. The code is kept in BlobbyWidget/ and Blobby/Shared/.

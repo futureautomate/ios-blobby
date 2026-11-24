@@ -30,6 +30,17 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
+      - name: Pick simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          ids=[(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name']=='iPhone 16 Pro']
+          ids=ids or [(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
+          print(sorted(ids)[-1][1])")
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          echo "Simulator: $UDID"
+
       - name: Build for iOS Simulator
         run: |
           set -o pipefail
@@ -59,18 +70,21 @@ jobs:
           name: ipa-unsigned
           path: "*-unsigned.ipa"
           retention-days: 7
+      - name: Unit tests (streaks, rest days, pause, levels, saved data)
+        run: |
+          set -o pipefail
+          xcodebuild test -project "$SCHEME.xcodeproj" -scheme "$SCHEME" \
+            -destination "id=$SIM_UDID" -derivedDataPath build CODE_SIGNING_ALLOWED=NO 2>&1 \
+            | grep -E "Test Case .*(passed|failed)|error:|Executed [0-9]+ test|TEST (SUCCEEDED|FAILED)"
+
       - name: Run demo screens and capture
         timeout-minutes: 15         # a hung simulator must not block anything
         continue-on-error: true
         run: |
-          UDID=$(xcrun simctl list devices available -j | python3 -c "
-          import json,sys
-          d=json.load(sys.stdin)['devices']
-          ids=[(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name']=='iPhone 16 Pro']
-          ids=ids or [(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
-          print(sorted(ids)[-1][1])")
+          UDID="$SIM_UDID"
           echo "Simulator: $UDID"
-          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl boot "$UDID" || true      # may already be booted by the tests
+          xcrun simctl bootstatus "$UDID" -b
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
           xcrun simctl install "$UDID" "build/Build/Products/Debug-iphonesimulator/$SCHEME.app"
           mkdir -p screenshots
@@ -82,6 +96,9 @@ jobs:
             sleep 5
             xcrun simctl io "$UDID" screenshot "screenshots/$name.png"
           }
+          shot 20-share    -demo sample -share
+          shot 21-paused   -demo sample -open 5
+          shot 10-edit     -demo sample -edit
           shot 11-delete   -demo sample -confirm 1
           shot 12-settings -demo sample -settings
           shot 17-onboarding -demo empty -onboarding
@@ -95,7 +112,6 @@ jobs:
           shot 6-sun       -demo sample -open 3
           shot 7-apple     -demo sample -open 4
           shot 8-add       -demo sample -add
-          shot 10-edit     -demo sample -edit
           shot 13-edit-habit -demo sample -editHabit 0
           shot 14-levels   -demo sample -open 3 -history
           shot 15-levelup  -demo sample -open 0 -levelup

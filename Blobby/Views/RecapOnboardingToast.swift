@@ -67,7 +67,7 @@ struct WeeklyRecapView: View {
     }
 
     private var stats: [(habit: Habit, done: Int, scheduled: Int)] {
-        store.habits.map { h in
+        store.habits.filter { !$0.isPaused }.map { h in
             let s = h.weekStats(ending: endDay)
             return (h, s.done, s.scheduled)
         }
@@ -133,6 +133,10 @@ struct WeeklyRecapView: View {
                     ForEach(rows.indices, id: \.self) { i in
                         recapRow(rows[i].habit, done: rows[i].done, scheduled: rows[i].scheduled)
                     }
+
+                    ShareCardButton(title: "My week on Blobby",
+                                    card: WeekShareCard(habits: store.habits, endDay: endDay))
+                        .padding(.top, 4)
                 }
                 .padding(20)
             }
