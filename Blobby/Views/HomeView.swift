@@ -423,7 +423,8 @@ struct HabitCard: View {
                         Text(habit.name)
                             .font(.cartoon(19))
                             .foregroundStyle(Ink.text)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
                         if !habit.isScheduled() {
                             Text("Rest day 😴")
                                 .font(.cartoon(11, .bold))
