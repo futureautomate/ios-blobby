@@ -207,6 +207,8 @@ extension View {
 struct BouncyButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            // Whole button area is tappable, including empty space (e.g. between a row's text and its arrow).
+            .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed ? 0.86 : 1)
             .animation(.spring(response: 0.25, dampingFraction: 0.45), value: configuration.isPressed)
     }
