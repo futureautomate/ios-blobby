@@ -25,6 +25,8 @@ struct HomeView: View {
     @State private var showPaused = false
     @State private var showingShare = false
     @State private var menuFor: Habit?
+    /// When the long-press menu last opened: the finger lifting right after must not also open the habit.
+    @State private var lastLongPress = Date.distantPast
     @AppStorage("tipLongPressSeen") private var tipSeen = false
     @AppStorage(Hints.logKey) private var hintLogDone = false
     @AppStorage(Hints.openKey) private var hintOpenDone = false
@@ -114,7 +116,11 @@ struct HomeView: View {
                                     habit: habit,
                                     editing: editing,
                                     poofing: poofing.contains(habit.id),
-                                    onOpen: { if !editing { path.append(habit.id) } },
+                                    onOpen: {
+                                        guard !editing, menuFor == nil,
+                                              Date().timeIntervalSince(lastLongPress) > 0.8 else { return }
+                                        path.append(habit.id)
+                                    },
                                     onLevelUp: { acc in
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                                             if let h = store.habit(habit.id) {
@@ -404,6 +410,7 @@ struct HomeView: View {
     // MARK: - Long-press menu
 
     private func openMenu(_ habit: Habit) {
+        lastLongPress = Date()
         editTick += 1                    // haptic
         withAnimation(.spring) { tipSeen = true }
         menuFor = habit
@@ -472,7 +479,6 @@ struct HabitCard: View {
 
     @EnvironmentObject var store: HabitStore
     @State private var bump = 0
-    @State private var wiggle = false
 
     /// + button colour: done = deep/yellow, late check-in = grey, over the limit = coral.
     private var buttonFill: Color {
@@ -483,16 +489,13 @@ struct HabitCard: View {
         return habit.isOver() ? HabitColor.coral.main : habit.color.main
     }
 
-    /// Slightly different wiggle speed per card so they don't move in lockstep.
-    private var wiggleSpeed: Double {
-        0.12 + Double(abs(habit.id.hashValue % 4)) * 0.012
-    }
 
     var body: some View {
         HStack(spacing: 14) {
             HStack(spacing: 14) {
                 BlobMascot(progress: habit.progress(), color: habit.color, kind: habit.kind, size: 78, bump: bump,
-                           sticker: habit.emoji, sad: habit.isOver(), accessories: habit.unlocked)
+                           sticker: habit.emoji, sad: habit.isOver(), accessories: habit.unlocked,
+                           animated: !editing)          // hold still while arranging
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text(habit.name)
@@ -560,7 +563,7 @@ struct HabitCard: View {
                     .overlay(Circle().stroke(Ink.color, lineWidth: 3))
             }
             .buttonStyle(BouncyButtonStyle())
-            .opacity(editing ? 0.25 : 1)
+            .opacity(editing ? 0 : 1)
             .disabled(editing)
             .accessibilityLabel(habit.type == .checkIn ? "Check in \(habit.name)"
                                 : "Log \(habit.step.clean) \(habit.unitLabel(for: habit.step)) for \(habit.name)")
@@ -569,10 +572,18 @@ struct HabitCard: View {
         .padding(14)
         .cartoonCard()
         .opacity(habit.isScheduled() || editing ? 1 : 0.7)
-        // Jiggle while editing
-        .rotationEffect(.degrees(editing && !poofing ? (wiggle ? 1.2 : -1.2) : 0))
-        .animation(editing ? .easeInOut(duration: wiggleSpeed).repeatForever(autoreverses: true) : .spring,
-                   value: wiggle)
+        // Arranging: no jiggle; a drag handle replaces the + button instead
+        .overlay(alignment: .trailing) {
+            if editing && !poofing {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 20, weight: .black))
+                    .foregroundStyle(Ink.text.opacity(0.7))
+                    .frame(width: 46, height: 46)
+                    .padding(.trailing, 14)
+                    .transition(.opacity)
+                    .accessibilityHidden(true)
+            }
+        }
         // Red ✕ badge
         .overlay(alignment: .topLeading) {
             if editing && !poofing {
@@ -598,10 +609,6 @@ struct HabitCard: View {
             if poofing { PoofView(color: habit.color.main) }
         }
         .sensoryFeedback(.impact(flexibility: .soft), trigger: bump)
-        .onAppear { if editing { wiggle.toggle() } }
-        .onChange(of: editing) {
-            if editing { wiggle.toggle() } else { wiggle = false }
-        }
     }
 }
 
