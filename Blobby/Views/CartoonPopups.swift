@@ -208,14 +208,7 @@ struct SettingsView: View {
 
                 Color.clear.frame(height: 10)
 
-                // Signing details (useful when debugging sideloaded builds). Tap to expand.
-                Button { withAnimation(.spring) { showSigning.toggle() } } label: {
-                    Label(showSigning ? "Hide signing info" : "Signing info",
-                          systemImage: showSigning ? "chevron.up" : "info.circle")
-                        .font(.cartoon(12, .bold))
-                        .foregroundStyle(Ink.text.opacity(0.45))
-                }
-                .frame(maxWidth: .infinity)
+                // Signing details for debugging sideloaded builds: hidden; tap the version line 5 times to show.
                 if showSigning {
                     Text(ProvisioningInfo.report)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -235,10 +228,12 @@ struct SettingsView: View {
                 .foregroundStyle(HabitColor.ocean.tone)
                 .frame(maxWidth: .infinity)
 
-                Text("Blobby v\(version) · built on Windows")
+                Text("Blobby v\(version)")
                     .font(.cartoon(13, .bold))
                     .foregroundStyle(Ink.text.opacity(0.45))
                     .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 5) { withAnimation(.spring) { showSigning.toggle() } }
             }
             .padding(20)
             .padding(.top, 8)
