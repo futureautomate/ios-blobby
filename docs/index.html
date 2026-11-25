@@ -74,6 +74,7 @@ section{padding:80px 0}
 .buddies span{font-size:15px;font-weight:800;padding:8px 14px;border-radius:16px;border:2.5px solid var(--ink)}
 
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:44px}
+.grid3{grid-template-columns:repeat(3,1fr);max-width:860px;margin-left:auto;margin-right:auto}
 .feature{padding:18px 18px 22px;display:flex;flex-direction:column;align-items:center;text-align:center}
 .feature .phone{width:100%;border-width:7px;border-radius:30px;box-shadow:none;margin-bottom:16px}
 .feature h3{font-size:20px;margin-bottom:4px}
@@ -108,6 +109,12 @@ footer a{margin:0 10px;font-weight:800}
 }
 @media (max-width:520px){
   .grid{gap:14px}
+  .grid3{grid-template-columns:1fr;gap:18px}
+  .grid3 .phone{width:62%;margin-left:auto;margin-right:auto}
+  .grid3 .feature h3{font-size:19px}
+  .grid3 .feature p{font-size:15px}
+  nav .links{overflow-x:auto;padding-bottom:4px}
+  nav .links a{flex:none;padding:6px 12px;font-size:13px}
   .feature{padding:10px 10px 14px}
   .feature h3{font-size:16px}
   .feature p{font-size:13px}
@@ -127,7 +134,7 @@ footer a{margin:0 10px;font-weight:800}
 <div class="wrap">
   <nav>
     <a class="brand" href="./"><img src="img/icon.png" alt="">Blobby</a>
-    <div class="links"><a href="#buddies">Buddies</a><a href="#features">Features</a><a href="privacy.html">Privacy</a><a href="support.html">Support</a></div>
+    <div class="links"><a href="#buddies">Buddies</a><a href="#types">Habits</a><a href="#features">Features</a><a href="privacy.html">Privacy</a><a href="support.html">Support</a></div>
   </nav>
 </div>
 
@@ -138,7 +145,7 @@ footer a{margin:0 10px;font-weight:800}
     <div>
       <div class="tag">Habit buddies for iPhone</div>
       <h1>Tiny habits.<br>Big cheers.</h1>
-      <p class="lead">Every habit gets a cartoon buddy. Drink water and Droplet fills up. Read and your sprout grows. Keep a streak and they level up, put on hats and throw you a party.</p>
+      <p class="lead">Every habit gets a cartoon buddy. Drink water and Droplet fills up. Wake up on time and Sunny cheers. Cut down on your phone and your buddy keeps calm. Keep a streak and they level up, put on hats and throw you a party.</p>
       <div class="pills">
         <span class="pill">🔒 No account</span>
         <span class="pill">🚫 No ads</span>
@@ -178,6 +185,31 @@ footer a{margin:0 10px;font-weight:800}
   </div>
 </section>
 
+<section id="types" style="background:var(--sun-l);border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)">
+  <div class="wrap center">
+    <span class="kicker" style="background:#fff">Three kinds of habits</span>
+    <h2>Do more. Show up. Cut down.</h2>
+    <p class="muted" style="max-width:56ch;margin:12px auto 0">Not every habit is about counting. Blobby handles all three — and your buddy reacts the right way for each.</p>
+    <div class="grid grid3">
+      <div class="card feature">
+        <div class="phone"><img src="img/3-drop.jpg" alt="Water habit filling up toward 3 litres"></div>
+        <h3>📈 Build up</h3>
+        <p>Fill up to a daily goal — 2 L of water, 8,000 steps, 20 pages.</p>
+      </div>
+      <div class="card feature">
+        <div class="phone"><img src="img/t2-checkin.jpg" alt="Wake up early check-in with a 6:30 deadline"></div>
+        <h3>✅ Check in</h3>
+        <p>Once a day, with an optional deadline. Wake up by 6:30, sleep by 11 — late doesn't count.</p>
+      </div>
+      <div class="card feature">
+        <div class="phone"><img src="img/t3-limit.jpg" alt="Less phone limit with 45 minutes left today"></div>
+        <h3>✂️ Cut down</h3>
+        <p>Stay under a daily limit — less phone, less sugar. Your buddy gets nervous as you get close.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="features">
   <div class="wrap center">
     <span class="kicker" style="background:var(--sun)">Everything you need</span>
@@ -191,7 +223,7 @@ footer a{margin:0 10px;font-weight:800}
       <div class="card feature">
         <div class="phone"><img src="img/8-add.jpg" alt="Adding a new habit"></div>
         <h3>Add in seconds</h3>
-        <p>Quick picks, your own goal, rest days and a gentle reminder.</p>
+        <p>Quick picks, rest days, deadlines and gentle reminders.</p>
       </div>
       <div class="card feature">
         <div class="phone"><img src="img/r2-month.jpg" alt="Month report with a calendar of all habits"></div>
