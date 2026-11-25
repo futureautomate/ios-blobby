@@ -16,9 +16,11 @@ Animated cartoon habit tracker (SwiftUI, iPhone). Built from Windows with the pl
 
 - Website: https://futureautomate.github.io/ios-blobby/ (`docs/`), privacy: `/privacy.html`, support: `/support.html`
 - Store screenshots: Actions → "App Store screenshots" (manual) → `store-screenshots` branch (6.9")
-- Pricing decided: **free download + one-time "Blobby Plus" $3.99** (≈ ₹399 tier), launch price $1.99.
-  Free: 3 habits and all core features (accessibility never locked). Plus: unlimited habits, all buddies/accessories,
-  share-card styles; later widgets/Watch/iCloud, which justify raising it to $4.99.
+- Pricing decided (2026-11-25): **paid upfront, one-time, every feature included** (like Procreate) —
+  no free tier, no in-app purchases, no subscription, no ads. Price around $3.99 (≈ ₹399 tier); a launch price
+  ($1.99–2.99 for the first weeks) can be set with an App Store price schedule. Future features (widgets, Watch,
+  iCloud) ship to existing buyers for free; raise the price for new buyers as they arrive.
+- Listing: "Blobby: Habit Buddies" · "Cute habit tracker & streaks" · Health & Fitness · 4+ · promo codes for reviewers.
 - Account: individual Apple Developer account (seller = legal name). Steps in `../APP-STORE-PUBLISHING-INDIA.md`.
 
 ## Parked
