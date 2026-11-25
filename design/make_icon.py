@@ -1,11 +1,18 @@
-# Draws the Blobby app icon (1024x1024, opaque) — a happy water-blob mascot on a sunny background.
-import math
-from PIL import Image, ImageDraw, ImageFilter
+# Draws the Blobby app icon (1024x1024) — a happy water-blob mascot — in the three iOS home-screen looks:
+#   AppIcon.png        default: sunny background (opaque)
+#   AppIcon-dark.png   dark: same character on a transparent background (iOS adds its dark backdrop)
+#   AppIcon-tinted.png tinted: grayscale character on transparent (iOS colours it with the user's tint)
+# Usage: python3 design/make_icon.py <appiconset folder>
+import math, sys, os
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
+OUT = sys.argv[1] if len(sys.argv) > 1 else "Blobby/Assets.xcassets/AppIcon.appiconset"
 S = 2048                      # supersample, downscale at the end for smooth edges
 INK = (34, 34, 51)
 img = Image.new("RGB", (S, S))
 d = ImageDraw.Draw(img)
+# Character layer (transparent) — drawn separately so it can be reused for dark/tinted
+char = Image.new("RGBA", (S, S), (0, 0, 0, 0))
 
 # Background: vertical warm gradient
 top, bot = (255, 214, 92), (255, 168, 72)
@@ -66,15 +73,15 @@ ImageDraw.Draw(wmask).polygon(wave(level, 40, 0.3), fill=255)
 layer.paste(water, (0, 0), wmask)
 for (bx, by, br) in [(0.36, 0.74, 26), (0.44, 0.80, 18), (0.60, 0.70, 22), (0.66, 0.78, 30), (0.52, 0.66, 14)]:
     ld.ellipse([S * bx - br, S * by - br, S * bx + br, S * by + br], outline=(235, 245, 255), width=7, fill=(110, 170, 250))
-img.paste(layer, (0, 0), mask)
+char.paste(layer, (0, 0), mask)
 
 # Gloss highlight
 gl = Image.new("RGBA", (S, S), (0, 0, 0, 0))
 ImageDraw.Draw(gl).ellipse([cx - rx * 0.78, cy - ry * 0.72, cx - rx * 0.52, cy - ry * 0.18], fill=(255, 255, 255, 150))
 gl = gl.rotate(28, center=(cx - rx * 0.65, cy - ry * 0.45))
-img.paste(gl, (0, 0), gl)
+char.alpha_composite(gl)
 
-d = ImageDraw.Draw(img)
+d = ImageDraw.Draw(char)
 d.line(body + [body[0]], fill=INK, width=44, joint="curve")
 
 # Face: happy closed "^" eyes, open smile, cheeks
@@ -101,7 +108,23 @@ def star(x, y, r):
 star(S * 0.80, S * 0.22, 120)
 star(S * 0.17, S * 0.36, 70)
 
-out = img.resize((1024, 1024), Image.LANCZOS)
-out.save("/home/claude/icon/AppIcon.png")
-out.resize((256, 256), Image.LANCZOS).save("/home/claude/icon/preview.png")
+def small(im):
+    return im.resize((1024, 1024), Image.LANCZOS)
+
+# Default: sunny background + character
+full = img.convert("RGBA")
+full.alpha_composite(char)
+small(full.convert("RGB")).save(os.path.join(OUT, "AppIcon.png"))
+
+# Dark: character only — iOS supplies the dark background. The ink outline would vanish on it,
+# so it gets a soft moon-coloured rim instead.
+dark = char.copy()
+ImageDraw.Draw(dark).line(body + [body[0]], fill=(196, 188, 240), width=44, joint="curve")
+small(dark).save(os.path.join(OUT, "AppIcon-dark.png"))
+
+# Tinted: grayscale luminance of the character, brightened so the tint reads well, alpha kept
+gray = ImageOps.autocontrast(char.convert("L"), cutoff=1)
+gray = gray.point(lambda v: int(60 + v * 0.76))          # keep the ink lines dark-ish, bodies light
+tinted = Image.merge("RGBA", (gray, gray, gray, char.getchannel("A")))
+small(tinted).save(os.path.join(OUT, "AppIcon-tinted.png"))
 print("ok")
