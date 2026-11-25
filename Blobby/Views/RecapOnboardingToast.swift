@@ -127,7 +127,7 @@ struct WeeklyRecapView: View {
     var body: some View {
         ZStack {
             Paper.color.ignoresSafeArea()
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 18) {
                     HStack {
                         Text("Reports")
@@ -528,7 +528,7 @@ struct OnboardingView: View {
     private var blocked: Bool { (page == 1 && !nameOK) || (page == 2 && picked == nil) }
 
     private var aboutYou: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 16) {
                 Text("What should Blobby call you?")
                     .font(.cartoon(26))

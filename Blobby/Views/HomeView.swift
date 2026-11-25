@@ -58,7 +58,7 @@ struct HomeView: View {
                 Paper.color.ignoresSafeArea()
                 BackgroundBubbles(color: HabitColor.sunny.main)
 
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 18) {
                         header
 

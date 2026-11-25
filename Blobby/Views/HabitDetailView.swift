@@ -36,7 +36,7 @@ struct HabitDetailView: View {
             VStack(spacing: 0) {
             header(habit)
             ScrollViewReader { scroller in
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 18) {
                     if habit.isPaused {
                         HStack(spacing: 10) {

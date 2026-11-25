@@ -130,7 +130,7 @@ struct SettingsView: View {
         ZStack {
             Paper.color.ignoresSafeArea()
 
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Text("Settings")

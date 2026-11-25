@@ -119,6 +119,8 @@ struct AppAppearance: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // No grey scroll bar on the right edge anywhere (root view and every sheet use this modifier).
+            .scrollIndicators(.hidden)
             .onAppear { apply() }
             .onChange(of: appearance) { apply() }
     }

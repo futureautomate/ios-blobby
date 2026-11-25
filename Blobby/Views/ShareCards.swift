@@ -239,7 +239,7 @@ struct ShareCardPreview: View {
     let habits: [Habit]
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 24) {
                 WeekShareCard(habits: habits, endDay: Date())
                 if let h = habits.first {

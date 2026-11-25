@@ -64,7 +64,7 @@ struct AddHabitView: View {
         ZStack {
             Paper.color.ignoresSafeArea()
 
-            ScrollView {
+            ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 24) {
                     header
                     preview
