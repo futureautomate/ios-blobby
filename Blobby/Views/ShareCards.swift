@@ -61,8 +61,8 @@ struct WeekShareCard: View {
     private var start: Date { cal.date(byAdding: .day, value: -6, to: endDay) ?? endDay }
     private var days: [Date] { (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: start) } }
 
-    /// Same counting as Reports: days before a habit's first log don't count against it.
-    /// Today only counts if it's already done (an unfinished today isn't a miss yet).
+    /// Same counting as Reports: days before a habit's first log don't count against it,
+    /// and today only counts once it's done.
     private var rows: [(habit: Habit, done: Int, scheduled: Int)] {
         habits.filter { !$0.isPaused }.prefix(5).map { h in
             var done = 0, due = 0
@@ -75,174 +75,142 @@ struct WeekShareCard: View {
     }
 
     private func counts(_ h: Habit, _ day: Date) -> Bool {
-        let first = h.firstLogDay.map { cal.startOfDay(for: $0) }
-        guard let first = first, cal.startOfDay(for: day) >= first else { return false }
+        guard let first = h.firstLogDay.map({ cal.startOfDay(for: $0) }),
+              cal.startOfDay(for: day) >= first else { return false }
         if cal.startOfDay(for: day) > cal.startOfDay(for: Date()) { return false }
         if cal.isDateInToday(day) && !h.isDone(on: day) { return false }
         return h.isScheduled(on: day)
     }
 
-    /// If everything started mid-week, say so instead of leaving the empty days unexplained.
-    private var startedLabel: String? {
-        let firsts = rows.compactMap { $0.habit.firstLogDay }.map { cal.startOfDay(for: $0) }
-        guard let first = firsts.min(), first > cal.startOfDay(for: start),
-              first <= cal.startOfDay(for: endDay) else { return nil }
-        return "🌱 Started \(first.formatted(.dateTime.weekday(.abbreviated)))"
+    /// Share of all habits done on one day (nil = nothing counted that day).
+    private func dayRatio(_ day: Date) -> Double? {
+        var done = 0, due = 0
+        for r in rows where counts(r.habit, day) {
+            due += 1
+            if r.habit.isDone(on: day) { done += 1 }
+        }
+        return due == 0 ? nil : Double(done) / Double(due)
     }
 
-    private var bestStreak: (name: String, days: Int)? {
-        let best = rows.map(\.habit).max { $0.streak < $1.streak }
-        guard let b = best, b.streak >= 2 else { return nil }
-        return (b.name, b.streak)
+    private var bestStreak: Habit? {
+        rows.map(\.habit).filter { $0.streak >= 2 }.max { $0.streak < $1.streak }
     }
+
+    private var buddyColor: HabitColor { Profile.name.isEmpty ? .ocean : Profile.color }
 
     var body: some View {
         let done = rows.reduce(0) { $0 + $1.done }
         let total = rows.reduce(0) { $0 + $1.scheduled }
         let percent = total == 0 ? 0 : Int((Double(done) / Double(total) * 100).rounded())
-        let star = rows.filter { $0.scheduled > 0 && $0.done > 0 }
-            .max { Double($0.done) / Double($0.scheduled) < Double($1.done) / Double($1.scheduled) }?.habit
+        let perfect = days.filter { (dayRatio($0) ?? 0) >= 1 }.count
+        let showPercent = total > 0 && percent >= 60
 
-        CardFrame(tint: star?.color ?? .ocean) {
-            VStack(spacing: 12) {
+        CardFrame(tint: buddyColor) {
+            VStack(spacing: 14) {
+                // Title
                 VStack(spacing: 2) {
                     Text("\(Profile.possessive()) week")
-                        .font(.cartoonFixed(28))
+                        .font(.cartoonFixed(26))
                         .foregroundStyle(Ink.text)
                     Text("\(start.formatted(.dateTime.day().month())) – \(endDay.formatted(.dateTime.day().month()))")
                         .font(.cartoonFixed(12, .bold))
                         .foregroundStyle(Ink.text.opacity(0.5))
                 }
 
-                HStack(spacing: 14) {
-                    // The user's own buddy, so the big number doesn't read as one habit's score.
-                    BlobMascot(progress: 1, color: Profile.name.isEmpty ? .ocean : Profile.color,
-                               kind: Profile.name.isEmpty ? .drop : Profile.kind, size: 84,
+                // Hero: your buddy + one big, good number
+                HStack(spacing: 16) {
+                    BlobMascot(progress: max(0.35, Double(percent) / 100), color: buddyColor,
+                               kind: Profile.name.isEmpty ? .drop : Profile.kind, size: 92,
                                celebrate: done > 0, animated: false)
-                        .padding(.top, 26)
-                    VStack(alignment: .leading, spacing: 4) {
-                        // A brag card leads with what went well: the % when it's high, wins otherwise.
-                        let showPercent = total > 0 && percent >= 60
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(showPercent ? "\(percent)%" : (done > 0 ? "\(done)" : "🌱"))
-                            .font(.cartoonFixed(44))
+                            .font(.cartoonFixed(50))
                             .foregroundStyle(Ink.text)
-                        Text(showPercent ? "of habits done" : (done > 0 ? (done == 1 ? "win this week 🎉" : "wins this week 🎉")
-                                                                   : "Fresh week ahead"))
+                        Text(showPercent ? "of habits done" : (done == 0 ? "Fresh start" : (done == 1 ? "win this week" : "wins this week")))
                             .font(.cartoonFixed(15, .bold))
                             .foregroundStyle(Ink.text.opacity(0.7))
-                        if let streak = bestStreak {
-                            Text("🔥 \(streak.days)-day streak: \(streak.name)")
-                                .font(.cartoonFixed(13, .bold))
-                                .foregroundStyle(Ink.text)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                        } else if let star = star {
-                            Text("👑 Top habit: \(star.name)")
-                                .font(.cartoonFixed(13, .bold))
-                                .foregroundStyle(Ink.text)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
+                        HStack(spacing: 6) {
+                            if let s = bestStreak { pill("🔥 \(s.streak) days") }
+                            if perfect > 0 { pill("⭐️ \(perfect) perfect") }
                         }
+                        .padding(.top, 4)
                     }
                     Spacer(minLength: 0)
                 }
+                .padding(.horizontal, 4)
 
-                VStack(spacing: 5) {
-                    // Weekday letters line up with the dots below.
-                    HStack(spacing: 8) {
-                        if let label = startedLabel {
-                            Text(label)
-                                .font(.cartoonFixed(10, .bold))
-                                .foregroundStyle(Ink.text.opacity(0.55))
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 4)
-                        dayLetters
-                        Text("").frame(width: 34)
-                    }
+                // The squad: each habit's character, filled by how its week went
+                HStack(alignment: .top, spacing: 6) {
                     ForEach(rows.indices, id: \.self) { i in
-                        row(rows[i].habit, done: rows[i].done, scheduled: rows[i].scheduled)
+                        squadMember(rows[i].habit, done: rows[i].done, due: rows[i].scheduled)
                     }
-                    legend.padding(.top, 2)
                 }
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Card.color))
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Ink.color, lineWidth: 2.5))
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Card.color))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Ink.color, lineWidth: 2.5))
+
+                weekStrip
             }
         }
     }
 
-    private var dayLetters: some View {
-        HStack(spacing: 4) {
-            ForEach(days, id: \.self) { day in
-                Text(day.formatted(.dateTime.weekday(.narrow)))
-                    .font(.cartoonFixed(10, .bold))
-                    .foregroundStyle(Ink.text.opacity(0.5))
-                    .frame(width: 14)
-            }
-        }
+    private func pill(_ text: String) -> some View {
+        Text(text)
+            .font(.cartoonFixed(11, .bold))
+            .foregroundStyle(Ink.color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(HabitColor.sunny.light))
+            .overlay(Capsule().stroke(Ink.color, lineWidth: 1.5))
     }
 
-    private func row(_ h: Habit, done: Int, scheduled: Int) -> some View {
-        HStack(spacing: 8) {
-            BlobMascot(progress: scheduled > 0 ? Double(done) / Double(scheduled) : 0, color: h.color,
-                       kind: h.kind, size: 26, animated: false)
+    private func squadMember(_ h: Habit, done: Int, due: Int) -> some View {
+        let ratio = due > 0 ? Double(done) / Double(due) : 0
+        return VStack(spacing: 4) {
+            BlobMascot(progress: max(0.2, ratio), color: h.color, kind: h.kind, size: 46,
+                       celebrate: due > 0 && ratio >= 1, accessories: h.unlocked, animated: false)
+                .frame(height: 58, alignment: .bottom)
             Text(h.name)
-                .font(.cartoonFixed(13, .bold))
+                .font(.cartoonFixed(10, .bold))
                 .foregroundStyle(Ink.text)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: 4)
-            HStack(spacing: 4) {
-                ForEach(days, id: \.self) { day in
-                    dot(h, day)
-                }
-            }
-            Text(scheduled == 0 ? "–" : "\(done)/\(scheduled)")
-                .font(.cartoonFixed(12, .bold))
-                .foregroundStyle(Ink.text.opacity(0.7))
-                .frame(width: 34, alignment: .trailing)
-        }
-    }
-
-    /// Filled with a tick = done, plain circle = missed, dotted = didn't count (not due / not started).
-    private func dot(_ h: Habit, _ day: Date) -> some View {
-        let isDone = h.isDone(on: day) && counts(h, day)
-        let due = counts(h, day)
-        return ZStack {
-            Circle().fill(isDone ? h.color.main : (due ? Card.color : Color.clear))
-            Circle().stroke(Ink.color.opacity(due ? 0.55 : 0.2),
-                            style: StrokeStyle(lineWidth: 1, dash: due ? [] : [2, 2]))
-            if isDone {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 7, weight: .black))
-                    .foregroundStyle(Ink.color)
-            }
-        }
-        .frame(width: 14, height: 14)
-    }
-
-    private var legend: some View {
-        HStack(spacing: 12) {
-            legendItem(fill: HabitColor.sunny.main, tick: true, dashed: false, "done")
-            legendItem(fill: Card.color, tick: false, dashed: false, "missed")
-            legendItem(fill: .clear, tick: false, dashed: true, "not due / to do")
+                .minimumScaleFactor(0.7)
+            Text(due == 0 ? "new" : "\(done)/\(due)")
+                .font(.cartoonFixed(11, .heavy))
+                .foregroundStyle(due > 0 && ratio >= 1 ? Ink.color : Ink.text.opacity(0.6))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(due > 0 && ratio >= 1 ? h.color.main : Color.clear))
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func legendItem(fill: Color, tick: Bool, dashed: Bool, _ text: String) -> some View {
-        HStack(spacing: 4) {
-            ZStack {
-                Circle().fill(fill)
-                Circle().stroke(Ink.color.opacity(dashed ? 0.25 : 0.55),
-                                style: StrokeStyle(lineWidth: 1, dash: dashed ? [2, 2] : []))
-                if tick {
-                    Image(systemName: "checkmark").font(.system(size: 6, weight: .black)).foregroundStyle(Ink.color)
+    /// One dot per day for all habits together: full = everything done, light = some, white = none.
+    private var weekStrip: some View {
+        HStack(spacing: 8) {
+            ForEach(days, id: \.self) { day in
+                let r = dayRatio(day)
+                VStack(spacing: 3) {
+                    ZStack {
+                        Circle().fill(r == nil ? Color.clear
+                                      : (r! >= 1 ? HabitColor.sunny.main
+                                         : (r! > 0 ? HabitColor.sunny.main.opacity(0.4) : Card.color)))
+                        Circle().stroke(Ink.color.opacity(r == nil ? 0.2 : 0.6),
+                                        style: StrokeStyle(lineWidth: 1.5, dash: r == nil ? [2, 2] : []))
+                        if let r = r, r >= 1 {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundStyle(Ink.color)
+                        }
+                    }
+                    .frame(width: 24, height: 24)
+                    Text(day.formatted(.dateTime.weekday(.narrow)))
+                        .font(.cartoonFixed(10, .bold))
+                        .foregroundStyle(Ink.text.opacity(0.5))
                 }
             }
-            .frame(width: 11, height: 11)
-            Text(text).font(.cartoonFixed(10, .bold)).foregroundStyle(Ink.text.opacity(0.55))
         }
     }
 }
