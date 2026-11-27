@@ -33,6 +33,7 @@ private struct CardFrame<Content: View>: View {
                         .font(.cartoonFixed(12, .bold))
                         .foregroundStyle(Ink.text.opacity(0.5))
                 }
+                .padding(.top, 10)
                 .padding(.bottom, 14)
             }
             .padding(.horizontal, 20)
@@ -58,17 +59,38 @@ struct WeekShareCard: View {
     private var days: [Date] { (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: start) } }
 
     /// Same counting as Reports: days before a habit's first log don't count against it.
+    /// Today only counts if it's already done (an unfinished today isn't a miss yet).
     private var rows: [(habit: Habit, done: Int, scheduled: Int)] {
         habits.filter { !$0.isPaused }.prefix(5).map { h in
-            let s = h.stats(from: start, to: endDay)
-            return (h, s.done, s.scheduled)
+            var done = 0, due = 0
+            for day in days where counts(h, day) {
+                due += 1
+                if h.isDone(on: day) { done += 1 }
+            }
+            return (h, done, due)
         }
     }
 
     private func counts(_ h: Habit, _ day: Date) -> Bool {
         let first = h.firstLogDay.map { cal.startOfDay(for: $0) }
         guard let first = first, cal.startOfDay(for: day) >= first else { return false }
+        if cal.startOfDay(for: day) > cal.startOfDay(for: Date()) { return false }
+        if cal.isDateInToday(day) && !h.isDone(on: day) { return false }
         return h.isScheduled(on: day)
+    }
+
+    /// If everything started mid-week, say so instead of leaving the empty days unexplained.
+    private var startedLabel: String? {
+        let firsts = rows.compactMap { $0.habit.firstLogDay }.map { cal.startOfDay(for: $0) }
+        guard let first = firsts.min(), first > cal.startOfDay(for: start),
+              first <= cal.startOfDay(for: endDay) else { return nil }
+        return "🌱 Started \(first.formatted(.dateTime.weekday(.abbreviated)))"
+    }
+
+    private var bestStreak: (name: String, days: Int)? {
+        let best = rows.map(\.habit).max { $0.streak < $1.streak }
+        guard let b = best, b.streak >= 2 else { return nil }
+        return (b.name, b.streak)
     }
 
     var body: some View {
@@ -96,13 +118,22 @@ struct WeekShareCard: View {
                             .padding(.top, 34)   // room for flowers / hats so they don't cover the date
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(total == 0 ? "–" : "\(percent)%")
+                        // A brag card leads with what went well: the % when it's high, wins otherwise.
+                        let showPercent = total > 0 && percent >= 60
+                        Text(showPercent ? "\(percent)%" : (done > 0 ? "\(done)" : "🌱"))
                             .font(.cartoonFixed(44))
                             .foregroundStyle(Ink.text)
-                        Text(total == 0 ? "Just getting started" : "\(done) of \(total) habit-days done")
-                            .font(.cartoonFixed(13, .bold))
-                            .foregroundStyle(Ink.text.opacity(0.6))
-                        if let star = star {
+                        Text(showPercent ? "of habits done" : (done > 0 ? (done == 1 ? "win this week 🎉" : "wins this week 🎉")
+                                                                   : "Fresh week ahead"))
+                            .font(.cartoonFixed(15, .bold))
+                            .foregroundStyle(Ink.text.opacity(0.7))
+                        if let streak = bestStreak {
+                            Text("🔥 \(streak.days)-day streak: \(streak.name)")
+                                .font(.cartoonFixed(13, .bold))
+                                .foregroundStyle(Ink.text)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        } else if let star = star {
                             Text("👑 Top habit: \(star.name)")
                                 .font(.cartoonFixed(13, .bold))
                                 .foregroundStyle(Ink.text)
@@ -116,6 +147,12 @@ struct WeekShareCard: View {
                 VStack(spacing: 7) {
                     // Weekday letters line up with the dots below.
                     HStack(spacing: 8) {
+                        if let label = startedLabel {
+                            Text(label)
+                                .font(.cartoonFixed(10, .bold))
+                                .foregroundStyle(Ink.text.opacity(0.55))
+                                .lineLimit(1)
+                        }
                         Spacer(minLength: 4)
                         dayLetters
                         Text("").frame(width: 34)
@@ -186,7 +223,7 @@ struct WeekShareCard: View {
         HStack(spacing: 12) {
             legendItem(fill: HabitColor.sunny.main, tick: true, dashed: false, "done")
             legendItem(fill: Card.color, tick: false, dashed: false, "missed")
-            legendItem(fill: .clear, tick: false, dashed: true, "not due")
+            legendItem(fill: .clear, tick: false, dashed: true, "not due / to do")
         }
         .frame(maxWidth: .infinity)
     }

@@ -168,7 +168,7 @@ struct WeeklyRecapView: View {
 
                     if mode == .week {
                         ShareCardButton(title: "\(Profile.possessive()) week on Blobby",
-                                        card: WeekShareCard(habits: store.habits, endDay: range.end))
+                                        card: WeekShareCard(habits: store.habits, endDay: offset == 0 ? Date() : range.end))
                             .padding(.top, 4)
                     }
                 }

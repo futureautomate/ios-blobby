@@ -47,3 +47,4 @@ Animated cartoon habit tracker (SwiftUI, iPhone). Built from Windows with the pl
 - v0.9.2–v0.9.3: Reports (week/month, browse back), About you, backup export/import. ✅ Verified on iPhone.
 - v0.9.4: privacy manifest, no-encryption flag, privacy/support links in Settings; website + store-screenshot workflow.
 - v0.10.5 (2026-11-27): simpler Reports + clearer week share card (%, habit-days, weekday letters, done/missed/not-due legend, mascot no longer covers the date, days before a habit started no longer count) — big % + bar, perfect days, vs last period, top habit; rows show done/due days with weekday letters; month calendar uses 3 shades (all/some/missed) + 'nothing due'.
+- v0.10.6: share card leads with wins (% only when ≥60%), best streak line, includes today (done only), "Started <day>" label, footer spacing.
