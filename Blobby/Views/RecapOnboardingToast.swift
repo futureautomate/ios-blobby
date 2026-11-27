@@ -62,11 +62,8 @@ struct WeeklyRecapView: View {
 
     private let cal = Calendar.current
 
-    /// Latest week ends today on Sunday, otherwise yesterday (the last complete day).
-    private var latestWeekEnd: Date {
-        if cal.component(.weekday, from: Date()) == 1 { return Date() }
-        return cal.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-    }
+    /// Latest week = the last 7 days including today (today's habits count once they're done).
+    private var latestWeekEnd: Date { Date() }
 
     private var range: (start: Date, end: Date) {
         switch mode {
@@ -111,7 +108,7 @@ struct WeeklyRecapView: View {
 
     private var title: String {
         switch mode {
-        case .week: return offset == 0 ? "Your week" : (offset == 1 ? "Last week" : "\(offset) weeks ago")
+        case .week: return offset == 0 ? "Last 7 days" : (offset == 1 ? "The 7 days before" : "\(offset) weeks back")
         case .month: return range.start.formatted(.dateTime.month(.wide).year())
         }
     }
@@ -285,16 +282,14 @@ struct WeeklyRecapView: View {
         let period = mode == .week ? "week" : "month"
         return VStack(spacing: 12) {
             HStack(spacing: 14) {
-                if let star = star {
-                    BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 80,
-                               celebrate: offset == 0 && percent >= 75, sticker: star.emoji,
-                               accessories: star.unlocked, animated: false)
-                }
+                // The user's own buddy: this number is for all habits together, not the top habit.
+                BlobMascot(progress: Double(percent) / 100, color: Profile.color, kind: Profile.kind, size: 80,
+                           celebrate: offset == 0 && percent >= 75, animated: false)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(totalScheduled == 0 ? "–" : "\(percent)%")
                         .font(.cartoon(46))
                         .foregroundStyle(Ink.text)
-                    Text(offset == 0 && mode == .month ? "done so far" : "done")
+                    Text("of all habits done")
                         .font(.cartoon(15, .semibold))
                         .foregroundStyle(Ink.text.opacity(0.7))
                 }

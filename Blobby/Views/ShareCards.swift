@@ -115,11 +115,11 @@ struct WeekShareCard: View {
                 }
 
                 HStack(spacing: 14) {
-                    if let star = star {
-                        BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 84,
-                                   celebrate: true, sticker: star.emoji, accessories: star.unlocked, animated: false)
-                            .padding(.top, 26)   // room for flowers / hats so they don't cover the date
-                    }
+                    // The user's own buddy, so the big number doesn't read as one habit's score.
+                    BlobMascot(progress: 1, color: Profile.name.isEmpty ? .ocean : Profile.color,
+                               kind: Profile.name.isEmpty ? .drop : Profile.kind, size: 84,
+                               celebrate: done > 0, animated: false)
+                        .padding(.top, 26)
                     VStack(alignment: .leading, spacing: 4) {
                         // A brag card leads with what went well: the % when it's high, wins otherwise.
                         let showPercent = total > 0 && percent >= 60

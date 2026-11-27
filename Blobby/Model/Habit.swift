@@ -287,7 +287,7 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
     }
 
     /// Done / scheduled days and amount logged between two days (inclusive),
-    /// ignoring days before the first log and days after today.
+    /// ignoring days before the first log, days after today, and today unless it's already done.
     func stats(from start: Date, to end: Date) -> (done: Int, scheduled: Int, amount: Double) {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
@@ -299,7 +299,8 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         while day <= last {
             if day >= first {
                 amount += self.amount(on: day)
-                if isScheduled(on: day) {
+                // An unfinished today isn't a miss yet: it only counts once it's done.
+                if isScheduled(on: day) && (day < today || isDone(on: day)) {
                     scheduled += 1
                     if isDone(on: day) { done += 1 }
                 }
