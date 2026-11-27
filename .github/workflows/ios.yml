@@ -17,7 +17,7 @@ env:
 jobs:
   # One job = one cloud Mac (two parallel macOS jobs got stuck on GitHub capacity).
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     permissions:
       contents: write          # to publish screenshots to the ci-screenshots branch
@@ -35,7 +35,7 @@ jobs:
           UDID=$(xcrun simctl list devices available -j | python3 -c "
           import json,sys
           d=json.load(sys.stdin)['devices']
-          ids=[(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name']=='iPhone 16 Pro']
+          ids=[(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name'] in ('iPhone 17 Pro','iPhone 16 Pro')]
           ids=ids or [(k,x['udid'],x['name']) for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
           print(sorted(ids)[-1][1])")
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"

@@ -38,12 +38,15 @@ private struct CardFrame<Content: View>: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 18)
-
+        }
+        .frame(width: cardSize.width, height: cardSize.height)
+        .clipped()
+        // Border as an overlay on the fixed frame, so tall content can never push it out of view.
+        .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(Ink.color, lineWidth: 4)
                 .padding(2)
-        }
-        .frame(width: cardSize.width, height: cardSize.height)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .environment(\.colorScheme, .light)   // share images always use the day look
     }
@@ -115,7 +118,7 @@ struct WeekShareCard: View {
                     if let star = star {
                         BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 84,
                                    celebrate: true, sticker: star.emoji, accessories: star.unlocked, animated: false)
-                            .padding(.top, 34)   // room for flowers / hats so they don't cover the date
+                            .padding(.top, 26)   // room for flowers / hats so they don't cover the date
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         // A brag card leads with what went well: the % when it's high, wins otherwise.
@@ -144,7 +147,7 @@ struct WeekShareCard: View {
                     Spacer(minLength: 0)
                 }
 
-                VStack(spacing: 7) {
+                VStack(spacing: 5) {
                     // Weekday letters line up with the dots below.
                     HStack(spacing: 8) {
                         if let label = startedLabel {
