@@ -149,27 +149,7 @@ struct WeeklyRecapView: View {
                     modePicker
                     periodBar
 
-                    // Headline
-                    VStack(spacing: 6) {
-                        if let star = star {
-                            BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 110,
-                                       celebrate: offset == 0, sticker: star.emoji, accessories: star.unlocked)
-                            Text("Star of the \(mode == .week ? "week" : "month"): \(star.name)")
-                                .font(.cartoon(18))
-                                .foregroundStyle(Ink.text)
-                                .multilineTextAlignment(.center)
-                        }
-                        Text("You hit \(totalDone) of \(totalScheduled) goals")
-                            .font(.cartoon(24))
-                            .foregroundStyle(Ink.text)
-                        Text(headline)
-                            .font(.cartoon(15, .semibold))
-                            .foregroundStyle(Ink.text.opacity(0.6))
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity)
-                    .cartoonCard(fill: HabitColor.sunny.light)
+                    summaryCard
 
                     if mode == .month {
                         MonthOverview(habits: stats.map(\.habit), month: range.start)
@@ -260,21 +240,138 @@ struct WeeklyRecapView: View {
         .accessibilityLabel(label)
     }
 
+    private var percent: Int {
+        totalScheduled == 0 ? 0 : Int((Double(totalDone) / Double(totalScheduled) * 100).rounded())
+    }
+
+    /// Done-share for the same-length period just before this one (nil if nothing to compare).
+    private var previousPercent: Int? {
+        let r = range
+        let prevEnd = cal.date(byAdding: .day, value: -1, to: r.start) ?? r.start
+        let prevStart: Date
+        switch mode {
+        case .week: prevStart = cal.date(byAdding: .day, value: -6, to: prevEnd) ?? prevEnd
+        case .month: prevStart = cal.date(byAdding: .month, value: -1, to: r.start) ?? r.start
+        }
+        var done = 0, scheduled = 0
+        for h in store.habits {
+            let s = h.stats(from: prevStart, to: prevEnd)
+            done += s.done; scheduled += s.scheduled
+        }
+        return scheduled == 0 ? nil : Int((Double(done) / Double(scheduled) * 100).rounded())
+    }
+
+    /// Days in the period (up to yesterday) where every habit due that day was done.
+    private var perfectDays: Int {
+        let r = range
+        let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date())) ?? Date()
+        var day = cal.startOfDay(for: r.start)
+        let last = min(cal.startOfDay(for: r.end), yesterday)
+        var count = 0
+        while day <= last {
+            var done = 0, scheduled = 0
+            for row in stats {
+                let s = row.habit.stats(from: day, to: day)
+                done += s.done; scheduled += s.scheduled
+            }
+            if scheduled > 0 && done == scheduled { count += 1 }
+            guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return count
+    }
+
+    private var summaryCard: some View {
+        let period = mode == .week ? "week" : "month"
+        return VStack(spacing: 12) {
+            HStack(spacing: 14) {
+                if let star = star {
+                    BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 80,
+                               celebrate: offset == 0 && percent >= 75, sticker: star.emoji,
+                               accessories: star.unlocked, animated: false)
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(totalScheduled == 0 ? "–" : "\(percent)%")
+                        .font(.cartoon(46))
+                        .foregroundStyle(Ink.text)
+                    Text(offset == 0 && mode == .month ? "done so far" : "done")
+                        .font(.cartoon(15, .semibold))
+                        .foregroundStyle(Ink.text.opacity(0.7))
+                }
+                Spacer(minLength: 0)
+            }
+
+            // Plain progress bar: the same number, shown as a bar.
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Card.color)
+                    Capsule().fill(HabitColor.sunny.main)
+                        .frame(width: max(0, geo.size.width * CGFloat(percent) / 100))
+                    Capsule().stroke(Ink.color, lineWidth: 2)
+                }
+            }
+            .frame(height: 16)
+            .accessibilityHidden(true)
+
+            Text(totalScheduled == 0 ? headline : "\(totalDone) of \(totalScheduled) habit-days done. \(headline)")
+                .font(.cartoon(14, .semibold))
+                .foregroundStyle(Ink.text.opacity(0.65))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+
+            if totalScheduled > 0 {
+                HStack(spacing: 8) {
+                    chip("🎯", "\(perfectDays)", perfectDays == 1 ? "perfect day" : "perfect days")
+                    if let prev = previousPercent {
+                        let diff = percent - prev
+                        chip(diff >= 0 ? "📈" : "📉", diff == 0 ? "Same" : "\(diff > 0 ? "+" : "")\(diff)%",
+                             "vs last \(period)")
+                    }
+                    if let star = star {
+                        chip("👑", star.name, "top habit")
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .cartoonCard(fill: HabitColor.sunny.light)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func chip(_ emoji: String, _ value: String, _ label: String) -> some View {
+        VStack(spacing: 2) {
+            Text("\(emoji) \(value)")
+                .font(.cartoon(14))
+                .foregroundStyle(Ink.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.cartoon(11, .bold))
+                .foregroundStyle(Ink.text.opacity(0.55))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity)
+        .cartoonCard(radius: 14, fill: Card.color)
+    }
+
     private var headline: String {
         guard totalScheduled > 0 else { return offset == 0 ? "Add a habit to start your first week." : "No goals in this period." }
         let ratio = Double(totalDone) / Double(totalScheduled)
         let period = mode == .week ? "week" : "month"
         switch ratio {
-        case 1: return "A perfect \(period). Your buddies are throwing a party! 🎉"
-        case 0.75...: return "Great \(period)! Just a few slips. 🌟"
-        case 0.4...: return "Solid going. Small steps add up. 💪"
-        default: return "Fresh start next time. Your buddies believe in you. 🌱"
+        case 1: return "A perfect \(period)! 🎉"
+        case 0.75...: return "Great \(period)! 🌟"
+        case 0.4...: return "Small steps add up. 💪"
+        default: return "Fresh start next time. 🌱"
         }
     }
 
     private func recapRow(_ h: Habit, done: Int, scheduled: Int, amount: Double) -> some View {
         let ratio = scheduled > 0 ? Double(done) / Double(scheduled) : 0
-        let badge = scheduled == 0 ? "😴" : (ratio >= 1 ? "🏆" : (ratio >= 0.7 ? "🌟" : "💪"))
         return HStack(spacing: 12) {
             BlobMascot(progress: ratio, color: h.color, kind: h.kind, size: 58, sticker: h.emoji,
                        sad: scheduled > 0 && ratio < 0.4, accessories: h.unlocked, animated: false)
@@ -289,12 +386,21 @@ struct WeeklyRecapView: View {
                         }
                     }
                 }
-                Text(scheduled == 0 ? "No days scheduled" : "\(done) of \(scheduled) days · \(h.formatTotal(amount))")
+                Text(scheduled == 0 ? "Nothing due" : "Total: \(h.formatTotal(amount))")
                     .font(.cartoon(12, .bold))
                     .foregroundStyle(Ink.text.opacity(0.55))
             }
             Spacer()
-            Text(badge).font(.system(size: 30))
+            VStack(spacing: 0) {
+                Text(scheduled == 0 ? "–" : "\(done)/\(scheduled)")
+                    .font(.cartoon(22))
+                    .foregroundStyle(Ink.text)
+                Text("days")
+                    .font(.cartoon(11, .bold))
+                    .foregroundStyle(Ink.text.opacity(0.55))
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(scheduled == 0 ? "Nothing due" : "\(done) of \(scheduled) days done")
         }
         .padding(14)
         .cartoonCard()
@@ -305,12 +411,23 @@ struct WeeklyRecapView: View {
         let day = cal.date(byAdding: .day, value: -offset, to: end) ?? end
         let scheduled = h.isScheduled(on: day)
         let done = h.isDone(on: day)
-        return ZStack {
-            Circle().fill(done ? h.color.main : (scheduled ? h.color.light : Color.clear))
-            Circle().stroke(scheduled ? Ink.text.opacity(0.6) : Ink.text.opacity(0.2),
-                            style: StrokeStyle(lineWidth: 1.5, dash: scheduled ? [] : [2, 2]))
+        let letter = cal.veryShortWeekdaySymbols[cal.component(.weekday, from: day) - 1]
+        return VStack(spacing: 2) {
+            ZStack {
+                Circle().fill(done ? h.color.main : (scheduled ? h.color.light : Color.clear))
+                Circle().stroke(scheduled ? Ink.text.opacity(0.6) : Ink.text.opacity(0.2),
+                                style: StrokeStyle(lineWidth: 1.5, dash: scheduled ? [] : [2, 2]))
+                if done {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundStyle(Ink.color)
+                }
+            }
+            .frame(width: 18, height: 18)
+            Text(letter)
+                .font(.cartoon(9, .bold))
+                .foregroundStyle(Ink.text.opacity(0.45))
         }
-        .frame(width: 16, height: 16)
     }
 }
 
@@ -356,10 +473,11 @@ struct MonthOverview: View {
                     }
                 }
             }
-            HStack(spacing: 14) {
+            HStack(spacing: 10) {
                 legend(HabitColor.sunny.main, "All done")
-                legend(HabitColor.sunny.main.opacity(0.45), "Some")
-                legend(Color.clear, "None / rest", dashed: true)
+                legend(HabitColor.sunny.main.opacity(0.4), "Some")
+                legend(Card.color, "Missed")
+                legend(Color.clear, "Nothing due", dashed: true)
             }
             .padding(.top, 2)
         }
@@ -371,25 +489,27 @@ struct MonthOverview: View {
         let r = ratio(day)
         let n = cal.component(.day, from: day)
         let isToday = cal.isDateInToday(day)
+        let full = (r ?? 0) >= 1
         return ZStack {
-            Circle().fill(Card.color)
-            if let r = r, r > 0 {
-                Circle().trim(from: 0, to: r)
-                    .stroke(HabitColor.sunny.main, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .padding(3)
-                if r >= 1 { Circle().fill(HabitColor.sunny.main).padding(5) }
-            }
-            Circle().stroke(Ink.text.opacity(r == nil ? 0.15 : 0.5),
-                            style: StrokeStyle(lineWidth: isToday ? 2.5 : 1.2, dash: r == nil ? [2, 2] : []))
+            Circle().fill(fill(for: r, isToday: isToday))
+            Circle().stroke(isToday ? Ink.color : Ink.text.opacity(r == nil ? 0.15 : 0.45),
+                            style: StrokeStyle(lineWidth: isToday ? 2.5 : 1.2, dash: r == nil && !isToday ? [2, 2] : []))
             Text("\(n)")
                 .font(.cartoon(12, .bold))
-                .foregroundStyle(r.map { $0 >= 1 } == true ? Ink.color : Ink.text.opacity(day > Date() ? 0.3 : 0.85))
+                .foregroundStyle(full ? Ink.color : Ink.text.opacity(day > Date() ? 0.3 : 0.85))
         }
         .frame(height: 36)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(day.formatted(.dateTime.day().month(.wide)))
         .accessibilityValue(r.map { "\(Int(($0 * 100).rounded())) percent of goals done" } ?? "No goals")
+    }
+
+    /// Three easy steps: none, some, all. Today stays neutral until the day is over.
+    private func fill(for r: Double?, isToday: Bool) -> Color {
+        guard let r = r else { return .clear }
+        if r >= 1 { return HabitColor.sunny.main }
+        if isToday { return Card.color }
+        return r > 0 ? HabitColor.sunny.main.opacity(0.4) : Card.color
     }
 
     private func legend(_ color: Color, _ text: String, dashed: Bool = false) -> some View {

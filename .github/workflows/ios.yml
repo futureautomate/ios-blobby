@@ -105,6 +105,7 @@ jobs:
           shot h1-hint-log  -demo sample -hints
           shot h2-hint-night -demo sample -hints -night
           # core screens (older one-off checks removed to keep the step well under its time limit)
+          shot r1-week     -demo sample -recap
           shot r2-month    -demo sample -recap -month
           # v0.9 night theme + big text
           shot n1-home     -demo sample -night
