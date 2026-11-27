@@ -2,7 +2,7 @@ import UIKit
 
 /// Keeps the iOS edge-swipe-to-go-back gesture working on screens where we hide the
 /// standard navigation bar and draw our own cartoon header.
-extension UINavigationController: UIGestureRecognizerDelegate {
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
     override open func viewDidLoad() {
         super.viewDidLoad()
         interactivePopGestureRecognizer?.delegate = self
