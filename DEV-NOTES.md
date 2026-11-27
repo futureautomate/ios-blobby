@@ -52,3 +52,4 @@ Animated cartoon habit tracker (SwiftUI, iPhone). Built from Windows with the pl
 - v0.10.7: Reports/share card show the user's own buddy next to the overall number (not the top habit, which read as "Read = 25%"); "of all habits done"; week = last 7 days incl. today; today only counts once done (Habit.stats). Website: new report/share copy.
 - v0.10.8: report rows — day letters no longer squeezed out (fixedSize + layoutPriority), names stay on one line. Website report/share images refreshed.
 - v0.10.9: week share card redesigned — your buddy + one big good number, streak/perfect-day pills, "squad" row of habit characters filled by their week, one 7-day strip for all habits (★ = perfect day). No more dot grid.
+- v0.11.0: design pass 1 — sample-data row only in hidden dev tools; Reset moved to bottom as a coral danger card; Today header stacks for large text; check-in cards show "⏰ 2h 10m left" instead of an empty bar; level-up copy rewritten.

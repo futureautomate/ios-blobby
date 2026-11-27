@@ -24,6 +24,7 @@ struct HomeView: View {
     @State private var dragging: UUID?
     @State private var showPaused = false
     @State private var showingShare = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var menuFor: Habit?
     /// When the long-press menu last opened: the finger lifting right after must not also open the habit.
     @State private var lastLongPress = Date.distantPast
@@ -335,8 +336,26 @@ struct HomeView: View {
 
     // MARK: - Header
 
+    /// Large text: buttons move above the title so nothing gets cut off.
     private var header: some View {
-        HStack(alignment: .center) {
+        Group {
+            if dynamicTypeSize >= .xxLarge {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack { Spacer(); headerButtons }
+                    headerTitle
+                }
+            } else {
+                HStack(alignment: .center) {
+                    headerTitle
+                    Spacer()
+                    headerButtons
+                }
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    private var headerTitle: some View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     if !profileName.isEmpty {
@@ -347,11 +366,13 @@ struct HomeView: View {
                         .font(.cartoon(15, .bold))
                         .foregroundStyle((HabitColor(rawValue: profileColor) ?? .ocean).tone)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.6)
                 }
                 Text(Date().formatted(.dateTime.weekday(.wide).day().month(.wide)).uppercased())
                     .font(.cartoon(12, .bold))
                     .foregroundStyle(Ink.text.opacity(0.45))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Text("Today")
                     .font(.cartoon(40))
                     .foregroundStyle(Ink.text)
@@ -363,7 +384,9 @@ struct HomeView: View {
                         .animation(.spring, value: doneCount)
                 }
             }
-            Spacer()
+    }
+
+    @ViewBuilder private var headerButtons: some View {
             if editing {
                 Button {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { editing = false }
@@ -390,8 +413,6 @@ struct HomeView: View {
                 }
                 .transition(.scale.combined(with: .opacity))
             }
-        }
-        .padding(.top, 8)
     }
 
     private func circleButton(_ symbol: String, fill: Color, ink: Color = Ink.text, size: CGFloat, action: @escaping () -> Void) -> some View {
@@ -526,7 +547,17 @@ struct HabitCard: View {
                         .contentTransition(.numericText())
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                    ProgressPill(progress: habit.barProgress, color: habit.isOver() ? .coral : habit.color, height: 12)
+                    if habit.type == .checkIn && !habit.isDone() {
+                        // A check-in is all or nothing, so an empty bar says nothing: show the time left instead.
+                        TimelineView(.periodic(from: .now, by: 60)) { context in
+                            Text(habit.countdownText(now: context.date))
+                                .font(.cartoon(12, .bold))
+                                .foregroundStyle(habit.color.tone)
+                                .frame(height: 12, alignment: .leading)
+                        }
+                    } else {
+                        ProgressPill(progress: habit.barProgress, color: habit.isOver() ? .coral : habit.color, height: 12)
+                    }
                 }
             }
             .contentShape(Rectangle())

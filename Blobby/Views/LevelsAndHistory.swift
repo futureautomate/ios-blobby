@@ -107,7 +107,7 @@ struct LevelUpPopup: View {
                     .font(.cartoon(20))
                     .foregroundStyle(Ink.text)
                     .multilineTextAlignment(.center)
-                Text("\(accessory.days) days in a row of \(habit.name.lowercased()). Level \(habit.level) · \(accessory.levelTitle)")
+                Text("\(accessory.days) days of \(habit.name) in a row! You're now Level \(habit.level): \(accessory.levelTitle).")
                     .font(.cartoon(14, .semibold))
                     .foregroundStyle(Ink.text.opacity(0.6))
                     .multilineTextAlignment(.center)

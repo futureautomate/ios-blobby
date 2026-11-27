@@ -180,14 +180,6 @@ struct SettingsView: View {
                     dismiss()
                 }
 
-                row(emoji: "🧹", title: "Reset all data",
-                    subtitle: "Delete every habit and its history") {
-                    withAnimation(.spring) { pending = .reset }
-                }
-                row(emoji: "✨", title: "Load sample habits",
-                    subtitle: "Replace everything with 5 demo habits (for testing)") {
-                    withAnimation(.spring) { pending = .sample }
-                }
                 row(emoji: "📊", title: "Reports",
                     subtitle: "Week and month report cards, all habits together") {
                     showingRecap = true
@@ -206,10 +198,33 @@ struct SettingsView: View {
                 .padding(16)
                 .cartoonCard(radius: 22)
 
+                // Destructive action last, set apart and tinted so it's never tapped by accident.
+                Button { withAnimation(.spring) { pending = .reset } } label: {
+                    HStack(spacing: 14) {
+                        Text("🧹").font(.system(size: 30))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Reset all data").font(.cartoon(18)).foregroundStyle(HabitColor.coral.tone)
+                            Text("Delete every habit and its history. This can't be undone.")
+                                .font(.cartoon(13, .medium)).foregroundStyle(Ink.text.opacity(0.55))
+                                .multilineTextAlignment(.leading)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .cartoonCard(radius: 22, fill: HabitColor.coral.pastel)
+                .buttonStyle(BouncyButtonStyle())
+                .padding(.top, 14)
+
                 Color.clear.frame(height: 10)
 
                 // Signing details for debugging sideloaded builds: hidden; tap the version line 5 times to show.
                 if showSigning {
+                    // Developer tools: hidden from normal users.
+                    row(emoji: "✨", title: "Load sample habits",
+                        subtitle: "Replace everything with demo habits (testing only)") {
+                        withAnimation(.spring) { pending = .sample }
+                    }
                     Text(ProvisioningInfo.report)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundStyle(Ink.text.opacity(0.55))

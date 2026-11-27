@@ -397,6 +397,24 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         return goal > 0 ? min(amount() / goal, 1) : 0
     }
 
+    /// Check-in cards: "⏰ 2h 10m left" before the deadline, a gentle note after it.
+    func countdownText(now: Date = Date()) -> String {
+        guard let h = deadlineHour else { return "Any time today" }
+        let cal = Calendar.current
+        guard var deadline = cal.date(bySettingHour: h, minute: deadlineMinute ?? 0, second: 0, of: now) else {
+            return "Any time today"
+        }
+        // Bedtime habits: just after midnight still belongs to the previous evening's deadline.
+        if isNightDeadline && cal.component(.hour, from: now) < 4 {
+            deadline = cal.date(byAdding: .day, value: -1, to: deadline) ?? deadline
+        }
+        let minutes = Int(deadline.timeIntervalSince(now) / 60)
+        if minutes < 0 { return "Deadline passed today" }
+        if minutes < 60 { return "⏰ \(max(minutes, 1))m left" }
+        let hours = minutes / 60, rest = minutes % 60
+        return rest == 0 ? "⏰ \(hours)h left" : "⏰ \(hours)h \(rest)m left"
+    }
+
     /// Short status for cards: "1,250 / 2,000 ml", "Done at 6:12" style, "45 min left".
     func statusText(on date: Date = Date()) -> String {
         switch type {
