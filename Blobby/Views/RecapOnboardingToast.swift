@@ -393,10 +393,10 @@ struct WeeklyRecapView: View {
         let ratio = Double(totalDone) / Double(totalScheduled)
         let period = mode == .week ? "week" : "month"
         switch ratio {
-        case 1: return "A perfect \(period)! 🎉"
-        case 0.75...: return "Great \(period)! 🌟"
-        case 0.4...: return "Small steps add up. 💪"
-        default: return "Fresh start next time. 🌱"
+        case 1: return "A perfect \(period)!"
+        case 0.75...: return "Great \(period)!"
+        case 0.4...: return "Small steps add up."
+        default: return "Fresh start next time."
         }
     }
 
