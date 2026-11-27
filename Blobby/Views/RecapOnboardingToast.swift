@@ -409,8 +409,9 @@ struct WeeklyRecapView: View {
     private func dayDot(_ h: Habit, offset: Int) -> some View {
         let end = range.end
         let day = cal.date(byAdding: .day, value: -offset, to: end) ?? end
-        let scheduled = h.isScheduled(on: day)
-        let done = h.isDone(on: day)
+        let started = h.firstLogDay.map { cal.startOfDay(for: day) >= cal.startOfDay(for: $0) } ?? false
+        let scheduled = started && h.isScheduled(on: day) && day <= Date()
+        let done = scheduled && h.isDone(on: day)
         let letter = cal.veryShortWeekdaySymbols[cal.component(.weekday, from: day) - 1]
         return VStack(spacing: 2) {
             ZStack {

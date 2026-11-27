@@ -53,23 +53,33 @@ struct WeekShareCard: View {
     let habits: [Habit]
     let endDay: Date
 
-    private var start: Date { Calendar.current.date(byAdding: .day, value: -6, to: endDay) ?? endDay }
+    private let cal = Calendar.current
+    private var start: Date { cal.date(byAdding: .day, value: -6, to: endDay) ?? endDay }
+    private var days: [Date] { (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: start) } }
 
+    /// Same counting as Reports: days before a habit's first log don't count against it.
     private var rows: [(habit: Habit, done: Int, scheduled: Int)] {
         habits.filter { !$0.isPaused }.prefix(5).map { h in
-            let s = h.weekStats(ending: endDay)
+            let s = h.stats(from: start, to: endDay)
             return (h, s.done, s.scheduled)
         }
+    }
+
+    private func counts(_ h: Habit, _ day: Date) -> Bool {
+        let first = h.firstLogDay.map { cal.startOfDay(for: $0) }
+        guard let first = first, cal.startOfDay(for: day) >= first else { return false }
+        return h.isScheduled(on: day)
     }
 
     var body: some View {
         let done = rows.reduce(0) { $0 + $1.done }
         let total = rows.reduce(0) { $0 + $1.scheduled }
-        let star = rows.filter { $0.scheduled > 0 }
+        let percent = total == 0 ? 0 : Int((Double(done) / Double(total) * 100).rounded())
+        let star = rows.filter { $0.scheduled > 0 && $0.done > 0 }
             .max { Double($0.done) / Double($0.scheduled) < Double($1.done) / Double($1.scheduled) }?.habit
 
         CardFrame(tint: star?.color ?? .ocean) {
-            VStack(spacing: 10) {
+            VStack(spacing: 12) {
                 VStack(spacing: 2) {
                     Text("\(Profile.possessive()) week")
                         .font(.cartoonFixed(28))
@@ -78,24 +88,42 @@ struct WeekShareCard: View {
                         .font(.cartoonFixed(12, .bold))
                         .foregroundStyle(Ink.text.opacity(0.5))
                 }
+
                 HStack(spacing: 14) {
                     if let star = star {
-                        BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 92,
+                        BlobMascot(progress: 1, color: star.color, kind: star.kind, size: 84,
                                    celebrate: true, sticker: star.emoji, accessories: star.unlocked, animated: false)
+                            .padding(.top, 34)   // room for flowers / hats so they don't cover the date
                     }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(done)/\(total)")
-                            .font(.cartoonFixed(40))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(total == 0 ? "–" : "\(percent)%")
+                            .font(.cartoonFixed(44))
                             .foregroundStyle(Ink.text)
-                        Text("goals hit")
-                            .font(.cartoonFixed(15, .bold))
+                        Text(total == 0 ? "Just getting started" : "\(done) of \(total) habit-days done")
+                            .font(.cartoonFixed(13, .bold))
                             .foregroundStyle(Ink.text.opacity(0.6))
+                        if let star = star {
+                            Text("👑 Top habit: \(star.name)")
+                                .font(.cartoonFixed(13, .bold))
+                                .foregroundStyle(Ink.text)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
                     }
+                    Spacer(minLength: 0)
                 }
-                VStack(spacing: 6) {
+
+                VStack(spacing: 7) {
+                    // Weekday letters line up with the dots below.
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 4)
+                        dayLetters
+                        Text("").frame(width: 34)
+                    }
                     ForEach(rows.indices, id: \.self) { i in
                         row(rows[i].habit, done: rows[i].done, scheduled: rows[i].scheduled)
                     }
+                    legend.padding(.top, 2)
                 }
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Card.color))
@@ -104,24 +132,77 @@ struct WeekShareCard: View {
         }
     }
 
+    private var dayLetters: some View {
+        HStack(spacing: 4) {
+            ForEach(days, id: \.self) { day in
+                Text(day.formatted(.dateTime.weekday(.narrow)))
+                    .font(.cartoonFixed(10, .bold))
+                    .foregroundStyle(Ink.text.opacity(0.5))
+                    .frame(width: 14)
+            }
+        }
+    }
+
     private func row(_ h: Habit, done: Int, scheduled: Int) -> some View {
         HStack(spacing: 8) {
             BlobMascot(progress: scheduled > 0 ? Double(done) / Double(scheduled) : 0, color: h.color,
-                       kind: h.kind, size: 28, animated: false)
+                       kind: h.kind, size: 26, animated: false)
             Text(h.name)
                 .font(.cartoonFixed(13, .bold))
                 .foregroundStyle(Ink.text)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer(minLength: 4)
-            HStack(spacing: 3) {
-                ForEach(0..<7, id: \.self) { i in
-                    let day = Calendar.current.date(byAdding: .day, value: i - 6, to: endDay) ?? endDay
-                    Circle()
-                        .fill(h.isDone(on: day) ? h.color.main : (h.isScheduled(on: day) ? h.color.light : Color.clear))
-                        .overlay(Circle().stroke(Ink.color.opacity(h.isScheduled(on: day) ? 0.5 : 0.15), lineWidth: 1))
-                        .frame(width: 11, height: 11)
+            HStack(spacing: 4) {
+                ForEach(days, id: \.self) { day in
+                    dot(h, day)
                 }
             }
+            Text(scheduled == 0 ? "–" : "\(done)/\(scheduled)")
+                .font(.cartoonFixed(12, .bold))
+                .foregroundStyle(Ink.text.opacity(0.7))
+                .frame(width: 34, alignment: .trailing)
+        }
+    }
+
+    /// Filled with a tick = done, plain circle = missed, dotted = didn't count (not due / not started).
+    private func dot(_ h: Habit, _ day: Date) -> some View {
+        let isDone = h.isDone(on: day) && counts(h, day)
+        let due = counts(h, day)
+        return ZStack {
+            Circle().fill(isDone ? h.color.main : (due ? Card.color : Color.clear))
+            Circle().stroke(Ink.color.opacity(due ? 0.55 : 0.2),
+                            style: StrokeStyle(lineWidth: 1, dash: due ? [] : [2, 2]))
+            if isDone {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 7, weight: .black))
+                    .foregroundStyle(Ink.color)
+            }
+        }
+        .frame(width: 14, height: 14)
+    }
+
+    private var legend: some View {
+        HStack(spacing: 12) {
+            legendItem(fill: HabitColor.sunny.main, tick: true, dashed: false, "done")
+            legendItem(fill: Card.color, tick: false, dashed: false, "missed")
+            legendItem(fill: .clear, tick: false, dashed: true, "not due")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func legendItem(fill: Color, tick: Bool, dashed: Bool, _ text: String) -> some View {
+        HStack(spacing: 4) {
+            ZStack {
+                Circle().fill(fill)
+                Circle().stroke(Ink.color.opacity(dashed ? 0.25 : 0.55),
+                                style: StrokeStyle(lineWidth: 1, dash: dashed ? [2, 2] : []))
+                if tick {
+                    Image(systemName: "checkmark").font(.system(size: 6, weight: .black)).foregroundStyle(Ink.color)
+                }
+            }
+            .frame(width: 11, height: 11)
+            Text(text).font(.cartoonFixed(10, .bold)).foregroundStyle(Ink.text.opacity(0.55))
         }
     }
 }
