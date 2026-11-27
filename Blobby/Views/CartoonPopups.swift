@@ -212,7 +212,7 @@ struct SettingsView: View {
                     }
                     .padding(16)
                 }
-                .cartoonCard(radius: 22, fill: HabitColor.coral.pastel)
+                .cartoonCard(radius: 22, fill: HabitColor.coral.light)
                 .buttonStyle(BouncyButtonStyle())
                 .padding(.top, 14)
 

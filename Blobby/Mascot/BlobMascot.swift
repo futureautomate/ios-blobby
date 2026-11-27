@@ -54,7 +54,8 @@ struct BlobMascot: View {
     var body: some View {
         Group {
             if animated && !reduceMotion {
-                TimelineView(.animation) { timeline in
+                // 30 fps: the motion is slow, and 7+ characters redrawing at 120 Hz made scrolling stutter.
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                     scene(t: timeline.date.timeIntervalSinceReferenceDate)
                 }
             } else {
@@ -87,9 +88,9 @@ struct BlobMascot: View {
                 // Night: a soft glow in the habit colour so the character doesn't sink into the dark sky.
                 if scheme == .dark {
                     Circle()
-                        .fill(color.main.opacity(0.28))
-                        .frame(width: size * 0.92, height: size * 0.92)
-                        .blur(radius: size * 0.09)
+                        .fill(RadialGradient(colors: [color.main.opacity(0.32), color.main.opacity(0)],
+                                             center: .center, startRadius: 0, endRadius: size * 0.55))
+                        .frame(width: size * 1.1, height: size * 1.1)
                 }
                 // Ground shadow — shrinks while jumping.
                 Ellipse()
@@ -343,9 +344,9 @@ private struct SunCharacter: View {
 
         ZStack {
             Circle()
-                .fill(color.main.opacity(0.15 + 0.35 * Double(p)))
-                .frame(width: core * 1.55 * pulse, height: core * 1.55 * pulse)
-                .blur(radius: size * 0.05)
+                .fill(RadialGradient(colors: [color.main.opacity(0.15 + 0.35 * Double(p)), color.main.opacity(0)],
+                                     center: .center, startRadius: core * 0.45, endRadius: core * 0.9 * pulse))
+                .frame(width: core * 1.8 * pulse, height: core * 1.8 * pulse)
 
             ZStack {
                 ForEach(0..<12, id: \.self) { i in

@@ -86,7 +86,26 @@ struct WeeklyRecapView: View {
         return range.start > cal.startOfDay(for: e)
     }
 
+    /// Report numbers are computed once per period and reused; recomputing them on every
+    /// redraw (scrolling, springs) made the sheet stutter.
+    @State private var cache = ReportCache()
+
+    private var cacheKey: String {
+        let logs = store.habits.reduce(0) { $0 + $1.log.count + $1.lateDays.count }
+        return "\(mode)-\(offset)-\(store.habits.count)-\(logs)-\(Habit.key(Date()))"
+    }
+
     private var stats: [(habit: Habit, done: Int, scheduled: Int, amount: Double)] {
+        if cache.key == cacheKey, let rows = cache.rows { return rows }
+        let rows = computeStats()
+        cache.key = cacheKey
+        cache.rows = rows
+        cache.previous = nil
+        cache.perfect = nil
+        return rows
+    }
+
+    private func computeStats() -> [(habit: Habit, done: Int, scheduled: Int, amount: Double)] {
         let r = range
         return store.habits.compactMap { h in
             let s = h.stats(from: r.start, to: r.end)
@@ -243,6 +262,14 @@ struct WeeklyRecapView: View {
 
     /// Done-share for the same-length period just before this one (nil if nothing to compare).
     private var previousPercent: Int? {
+        _ = stats   // refreshes the cache key
+        if let p = cache.previous { return p.value }
+        let value = computePreviousPercent()
+        cache.previous = .init(value: value)
+        return value
+    }
+
+    private func computePreviousPercent() -> Int? {
         let r = range
         let prevEnd = cal.date(byAdding: .day, value: -1, to: r.start) ?? r.start
         let prevStart: Date
@@ -260,6 +287,14 @@ struct WeeklyRecapView: View {
 
     /// Days in the period (up to yesterday) where every habit due that day was done.
     private var perfectDays: Int {
+        let rows = stats
+        if let p = cache.perfect { return p }
+        let value = computePerfectDays(rows)
+        cache.perfect = value
+        return value
+    }
+
+    private func computePerfectDays(_ rows: [(habit: Habit, done: Int, scheduled: Int, amount: Double)]) -> Int {
         let r = range
         let yesterday = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date())) ?? Date()
         var day = cal.startOfDay(for: r.start)
@@ -267,7 +302,7 @@ struct WeeklyRecapView: View {
         var count = 0
         while day <= last {
             var done = 0, scheduled = 0
-            for row in stats {
+            for row in rows {
                 let s = row.habit.stats(from: day, to: day)
                 done += s.done; scheduled += s.scheduled
             }
@@ -431,6 +466,15 @@ struct WeeklyRecapView: View {
     }
 }
 
+/// Holds computed report numbers between redraws.
+final class ReportCache {
+    struct Box<T> { let value: T }
+    var key = ""
+    var rows: [(habit: Habit, done: Int, scheduled: Int, amount: Double)]?
+    var previous: Box<Int?>?
+    var perfect: Int?
+}
+
 /// All habits on one month calendar: each day's ring fills with the share of goals done.
 struct MonthOverview: View {
     let habits: [Habit]
@@ -455,6 +499,9 @@ struct MonthOverview: View {
     }
 
     var body: some View {
+        let ratios: [Date: Double] = Dictionary(uniqueKeysWithValues: days.compactMap { $0 }.compactMap { d in
+            ratio(d).map { (d, $0) }
+        })
         let symbols = cal.veryShortWeekdaySymbols
         let order = (0..<7).map { (cal.firstWeekday - 1 + $0) % 7 }
         VStack(spacing: 10) {
@@ -467,7 +514,7 @@ struct MonthOverview: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 8) {
                 ForEach(Array(days.enumerated()), id: \.offset) { _, day in
                     if let day = day {
-                        cell(day)
+                        cell(day, r: ratios[day])
                     } else {
                         Color.clear.frame(height: 36)
                     }
@@ -485,8 +532,7 @@ struct MonthOverview: View {
         .cartoonCard()
     }
 
-    private func cell(_ day: Date) -> some View {
-        let r = ratio(day)
+    private func cell(_ day: Date, r: Double?) -> some View {
         let n = cal.component(.day, from: day)
         let isToday = cal.isDateInToday(day)
         let full = (r ?? 0) >= 1

@@ -202,7 +202,7 @@ struct AddHabitView: View {
                         previewBump += 1
                     } label: {
                         VStack(spacing: 2) {
-                            BlobMascot(progress: 0.6, color: color, kind: k, size: 60)
+                            BlobMascot(progress: 0.6, color: color, kind: k, size: 60, animated: false)
                                 .allowsHitTesting(false)
                             Text(k.title)
                                 .font(.cartoon(13, .bold))

@@ -106,7 +106,7 @@ struct WeekShareCard: View {
         let showPercent = total > 0 && percent >= 60
 
         CardFrame(tint: buddyColor) {
-            VStack(spacing: 14) {
+            VStack(spacing: 0) {
                 // Title
                 VStack(spacing: 2) {
                     Text("\(Profile.possessive()) week")
@@ -117,10 +117,12 @@ struct WeekShareCard: View {
                         .foregroundStyle(Ink.text.opacity(0.5))
                 }
 
+                Spacer(minLength: 8)
+
                 // Hero: your buddy + one big, good number
                 HStack(spacing: 16) {
-                    BlobMascot(progress: max(0.35, Double(percent) / 100), color: buddyColor,
-                               kind: Profile.name.isEmpty ? .drop : Profile.kind, size: 92,
+                    BlobMascot(progress: 1, color: buddyColor,
+                               kind: Profile.name.isEmpty ? .drop : Profile.kind, size: 96,
                                celebrate: done > 0, animated: false)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(showPercent ? "\(percent)%" : (done > 0 ? "\(done)" : "🌱"))
@@ -139,6 +141,8 @@ struct WeekShareCard: View {
                 }
                 .padding(.horizontal, 4)
 
+                Spacer(minLength: 10)
+
                 // The squad: each habit's character, filled by how its week went
                 HStack(alignment: .top, spacing: 6) {
                     ForEach(rows.indices, id: \.self) { i in
@@ -151,8 +155,13 @@ struct WeekShareCard: View {
                 .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Card.color))
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Ink.color, lineWidth: 2.5))
 
+                Spacer(minLength: 10)
+
                 weekStrip
+
+                Spacer(minLength: 6)
             }
+            .frame(maxHeight: .infinity)
         }
     }
 
@@ -169,14 +178,16 @@ struct WeekShareCard: View {
     private func squadMember(_ h: Habit, done: Int, due: Int) -> some View {
         let ratio = due > 0 ? Double(done) / Double(due) : 0
         return VStack(spacing: 4) {
-            BlobMascot(progress: max(0.2, ratio), color: h.color, kind: h.kind, size: 46,
+            BlobMascot(progress: max(0.2, ratio), color: h.color, kind: h.kind, size: 50,
                        celebrate: due > 0 && ratio >= 1, accessories: h.unlocked, animated: false)
-                .frame(height: 58, alignment: .bottom)
+                .frame(height: 62, alignment: .bottom)
+            // Same size for every name; long ones wrap to a second line, so badges stay aligned.
             Text(h.name)
                 .font(.cartoonFixed(10, .bold))
                 .foregroundStyle(Ink.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(height: 26, alignment: .top)
             Text(due == 0 ? "new" : "\(done)/\(due)")
                 .font(.cartoonFixed(11, .heavy))
                 .foregroundStyle(due > 0 && ratio >= 1 ? Ink.color : Ink.text.opacity(0.6))
@@ -205,7 +216,7 @@ struct WeekShareCard: View {
                                 .foregroundStyle(Ink.color)
                         }
                     }
-                    .frame(width: 24, height: 24)
+                    .frame(width: 28, height: 28)
                     Text(day.formatted(.dateTime.weekday(.narrow)))
                         .font(.cartoonFixed(10, .bold))
                         .foregroundStyle(Ink.text.opacity(0.5))

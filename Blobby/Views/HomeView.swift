@@ -553,7 +553,7 @@ struct HabitCard: View {
                             Text(habit.countdownText(now: context.date))
                                 .font(.cartoon(12, .bold))
                                 .foregroundStyle(habit.color.tone)
-                                .frame(height: 12, alignment: .leading)
+                                .frame(maxWidth: .infinity, minHeight: 12, maxHeight: 12, alignment: .leading)
                         }
                     } else {
                         ProgressPill(progress: habit.barProgress, color: habit.isOver() ? .coral : habit.color, height: 12)
