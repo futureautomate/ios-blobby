@@ -374,18 +374,22 @@ struct WeeklyRecapView: View {
                 Text(h.name)
                     .font(.cartoon(17))
                     .foregroundStyle(Ink.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                 if mode == .week {
                     HStack(spacing: 5) {
                         ForEach(0..<7, id: \.self) { i in
                             dayDot(h, offset: 6 - i)
                         }
                     }
+                    .fixedSize()   // never squeeze the day letters away
                 }
                 Text(scheduled == 0 ? "Nothing due" : "Total: \(h.formatTotal(amount))")
                     .font(.cartoon(12, .bold))
                     .foregroundStyle(Ink.text.opacity(0.55))
             }
-            Spacer()
+            .layoutPriority(1)   // the name + dots get space first; the count is short
+            Spacer(minLength: 4)
             VStack(spacing: 0) {
                 Text(scheduled == 0 ? "–" : "\(done)/\(scheduled)")
                     .font(.cartoon(22))
