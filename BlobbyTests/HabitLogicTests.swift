@@ -158,6 +158,19 @@ final class HabitLogicTests: XCTestCase {
         XCTAssertTrue(cal.isDate(h.checkInDay(for: time(0, 22, 30)), inSameDayAs: day(0)))
     }
 
+    func testCheckInWindowCatchesTooEarlyTaps() {
+        let bed = Habit(name: "Sleep by 11", emoji: "🌙", color: .grape, goal: 1, unit: "days", step: 1,
+                        type: .checkIn, deadlineHour: 23, deadlineMinute: 0)
+        XCTAssertTrue(bed.isTooEarlyToCheckIn(time(0, 12, 0)))    // noon: far too early
+        XCTAssertFalse(bed.isTooEarlyToCheckIn(time(0, 18, 30)))  // window opens 6 pm
+        XCTAssertFalse(bed.isTooEarlyToCheckIn(time(0, 0, 30)))   // after midnight = last night
+        let wake = Habit(name: "Wake up early", emoji: "🌅", color: .sunny, goal: 1, unit: "days", step: 1,
+                         type: .checkIn, deadlineHour: 6, deadlineMinute: 30)
+        XCTAssertTrue(wake.isTooEarlyToCheckIn(time(0, 1, 0)))    // 1 am isn't waking up
+        XCTAssertFalse(wake.isTooEarlyToCheckIn(time(0, 3, 0)))   // window opens 2:30
+        XCTAssertFalse(wake.isTooEarlyToCheckIn(time(0, 9, 0)))   // late, not early
+    }
+
     func testLateCheckInDoesNotCountForStreak() {
         var h = Habit(name: "Wake", emoji: "🌅", color: .sunny, goal: 1, unit: "days", step: 1,
                       type: .checkIn, deadlineHour: 6, deadlineMinute: 30)

@@ -9,6 +9,8 @@ final class HabitStore: ObservableObject {
     @Published var openRequest: UUID?
     /// Most recent "+" log, shown as an Undo toast for a few seconds.
     @Published var lastLog: LogEvent?
+    /// A check-in tapped before its window opens, waiting for the user to confirm.
+    @Published var earlyCheckIn: EarlyCheckIn?
 
     private let persist: Bool
 
@@ -35,6 +37,12 @@ final class HabitStore: ObservableObject {
     func logStep(_ id: UUID) {
         guard let habit = habit(id) else { return }
         if habit.type == .checkIn {
+            if habit.isTooEarlyToCheckIn() && !habit.isDone() {
+                earlyCheckIn = EarlyCheckIn(habitID: id, name: habit.name,
+                                            opens: habit.checkInOpens() ?? Date(),
+                                            deadline: habit.deadlineText ?? "")
+                return
+            }
             checkIn(id)
             return
         }
@@ -242,4 +250,14 @@ enum LaunchOptions {
     static var reportMonth: Bool { args.contains("-month") }
     static var askName: Bool { args.contains("-askName") }
     static var onboardingPage: Int { value("-page").flatMap { Int($0) } ?? 0 }
+}
+
+
+/// "Sleep by 11" tapped at noon: ask before counting it.
+struct EarlyCheckIn: Identifiable {
+    let id = UUID()
+    let habitID: UUID
+    let name: String
+    let opens: Date
+    let deadline: String
 }

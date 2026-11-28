@@ -152,6 +152,23 @@ struct Habit: Identifiable, Codable, Equatable, Hashable {
         return time
     }
 
+    /// When today's check-in window opens: bedtime habits 5 hours before the deadline,
+    /// others 4 hours before. Nil when there's no deadline (any time is fine).
+    func checkInOpens(on now: Date = Date()) -> Date? {
+        guard hasDeadline, let h = deadlineHour else { return nil }
+        let cal = Calendar.current
+        // Just after midnight is still last night's bedtime window.
+        if isNightDeadline && cal.component(.hour, from: now) < 4 { return nil }
+        guard let deadline = cal.date(bySettingHour: h, minute: deadlineMinute ?? 0, second: 0, of: now) else { return nil }
+        return deadline.addingTimeInterval(Double(isNightDeadline ? -5 : -4) * 3600)
+    }
+
+    /// A check-in now would be suspiciously early (e.g. "Sleep by 11" at noon).
+    func isTooEarlyToCheckIn(_ now: Date = Date()) -> Bool {
+        guard let opens = checkInOpens(on: now) else { return false }
+        return now < opens
+    }
+
     /// Is a check-in at `time` after the deadline?
     func isLate(_ time: Date) -> Bool {
         guard hasDeadline, let h = deadlineHour else { return false }

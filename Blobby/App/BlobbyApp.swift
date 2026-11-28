@@ -21,6 +21,14 @@ struct BlobbyApp: App {
             HomeView()
                 .environmentObject(store)
                 .overlay { UndoToast().environmentObject(store) }
+                .alert(item: $store.earlyCheckIn) { early in
+                    Alert(
+                        title: Text("Bit early for \(early.name)?"),
+                        message: Text("Check-ins for \(early.name) open at \(early.opens.formatted(date: .omitted, time: .shortened)). Only check in if you've really done it."),
+                        primaryButton: .default(Text("Check in anyway")) { store.checkIn(early.habitID) },
+                        secondaryButton: .cancel(Text("Not yet"))
+                    )
+                }
                 .appAppearance()   // Auto / Light / Night (Settings)
                 .onAppear { Reminders.shared.store = store }
         }
